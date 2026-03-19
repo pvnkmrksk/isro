@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISRO Space Dashboard — India's Journey to the Stars</title>
+    <meta name="description" content="Explore ISRO's complete space program: satellites, launch vehicles, missions, and live orbital tracking. An open-source dashboard built from public data.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Stars background -->
+    <div id="stars-bg"></div>
+
+    <!-- Navigation -->
+    <nav id="navbar">
+        <div class="nav-brand">
+            <span class="nav-logo">🛰️</span>
+            <span class="nav-title">ISRO Dashboard</span>
+        </div>
+        <div class="nav-links">
+            <a href="#hero">Home</a>
+            <a href="#stats">Overview</a>
+            <a href="#timeline">Timeline</a>
+            <a href="#spacecraft">Spacecraft</a>
+            <a href="#launchers">Launchers</a>
+            <a href="#orbits">Orbits</a>
+            <a href="#centres">Centres</a>
+        </div>
+        <button class="nav-toggle" aria-label="Toggle menu">
+            <span></span><span></span><span></span>
+        </button>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="hero">
+        <div class="hero-content">
+            <p class="hero-subtitle">Exploring India's Space Odyssey</p>
+            <h1 class="hero-title">
+                <span class="gradient-text">ISRO</span> Space Dashboard
+            </h1>
+            <p class="hero-desc">From Aryabhata to Chandrayaan — track every satellite, every launch vehicle, every mission. See where India's space objects are right now, learn their stories, and discover 50+ years of reaching for the stars.</p>
+            <div class="hero-actions">
+                <a href="#spacecraft" class="btn btn-primary">Explore Spacecraft</a>
+                <a href="#timeline" class="btn btn-outline">View Timeline</a>
+            </div>
+        </div>
+        <div class="hero-visual" id="hero-orbit-viz">
+            <!-- Animated orbit rings rendered by JS -->
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section id="stats">
+        <div class="container">
+            <div class="stats-grid" id="stats-grid">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Timeline Section -->
+    <section id="timeline">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Mission <span class="gradient-text">Timeline</span></h2>
+                <p class="section-desc">Every spacecraft launched by ISRO, from the very first to the latest</p>
+            </div>
+            <div class="timeline-controls">
+                <div class="timeline-filters">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="active">Active</button>
+                    <button class="filter-btn" data-filter="decommissioned">Decommissioned</button>
+                    <button class="filter-btn" data-filter="failed">Failed</button>
+                </div>
+                <div class="timeline-decade-nav" id="decade-nav">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            <div class="timeline-wrapper">
+                <div class="timeline-line"></div>
+                <div id="timeline-items" class="timeline-items">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Spacecraft Catalog Section -->
+    <section id="spacecraft">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Spacecraft <span class="gradient-text">Catalog</span></h2>
+                <p class="section-desc">Browse all ISRO spacecraft with detailed mission profiles</p>
+            </div>
+            <div class="catalog-controls">
+                <div class="search-box">
+                    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <input type="text" id="spacecraft-search" placeholder="Search spacecraft...">
+                </div>
+                <div class="filter-group">
+                    <select id="orbit-filter">
+                        <option value="all">All Orbits</option>
+                        <option value="LEO">LEO</option>
+                        <option value="GEO">GEO</option>
+                        <option value="SSO">SSO</option>
+                        <option value="Lunar">Lunar</option>
+                        <option value="Interplanetary">Interplanetary</option>
+                    </select>
+                    <select id="status-filter">
+                        <option value="all">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="decommissioned">Decommissioned</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                    <select id="mission-filter">
+                        <option value="all">All Missions</option>
+                    </select>
+                    <select id="sort-by">
+                        <option value="date-desc">Newest First</option>
+                        <option value="date-asc">Oldest First</option>
+                        <option value="name">Name A-Z</option>
+                        <option value="mass">Heaviest First</option>
+                    </select>
+                </div>
+            </div>
+            <div class="catalog-stats" id="catalog-stats"></div>
+            <div id="spacecraft-grid" class="spacecraft-grid">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Spacecraft Detail Modal -->
+    <div id="spacecraft-modal" class="modal" aria-hidden="true">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <button class="modal-close" aria-label="Close">&times;</button>
+            <div id="modal-body">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Launch Vehicles Section -->
+    <section id="launchers">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Launch <span class="gradient-text">Vehicles</span></h2>
+                <p class="section-desc">The rockets that carry India's dreams to orbit</p>
+            </div>
+            <div id="launcher-families" class="launcher-families">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Orbital Visualization -->
+    <section id="orbits">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Orbital <span class="gradient-text">Map</span></h2>
+                <p class="section-desc">Where ISRO's spacecraft orbit — from low Earth orbit to geostationary and beyond</p>
+            </div>
+            <div class="orbit-legend" id="orbit-legend"></div>
+            <div class="orbit-viz-container">
+                <canvas id="orbit-canvas"></canvas>
+                <div id="orbit-tooltip" class="orbit-tooltip"></div>
+            </div>
+            <div id="orbit-stats" class="orbit-stats-grid"></div>
+        </div>
+    </section>
+
+    <!-- Customer Satellites -->
+    <section id="customers">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Global <span class="gradient-text">Customers</span></h2>
+                <p class="section-desc">Foreign satellites launched by ISRO — a trusted partner for the world</p>
+            </div>
+            <div id="customer-stats" class="customer-stats"></div>
+            <div id="customer-grid" class="customer-grid">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ISRO Centres -->
+    <section id="centres">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Research <span class="gradient-text">Centres</span></h2>
+                <p class="section-desc">ISRO's network of research and development facilities across India</p>
+            </div>
+            <div id="centres-grid" class="centres-grid">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Satellite Spotting Section -->
+    <section id="spotting">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Spot a <span class="gradient-text">Satellite</span></h2>
+                <p class="section-desc">Want to see an ISRO satellite pass overhead? Here's how you can try</p>
+            </div>
+            <div class="spotting-content">
+                <div class="spotting-card">
+                    <div class="spotting-icon">🔭</div>
+                    <h3>When to Look</h3>
+                    <p>The best time to spot satellites is during twilight — just after sunset or before sunrise. The sky is dark but the satellite is still lit by the sun above the horizon.</p>
+                </div>
+                <div class="spotting-card">
+                    <div class="spotting-icon">🌍</div>
+                    <h3>LEO Satellites</h3>
+                    <p>Low Earth Orbit satellites (like Cartosat, RISAT) move quickly across the sky in 2-5 minutes. They look like bright, steadily moving stars — no blinking!</p>
+                </div>
+                <div class="spotting-card">
+                    <div class="spotting-icon">📡</div>
+                    <h3>GEO Satellites</h3>
+                    <p>Geostationary satellites (like INSAT, GSAT) appear fixed in the sky. They're much harder to spot with the naked eye — you'd need a telescope and dark skies.</p>
+                </div>
+                <div class="spotting-card">
+                    <div class="spotting-icon">🌐</div>
+                    <h3>Tracking Tools</h3>
+                    <p>Use these free tools to find exactly when ISRO satellites pass over your location:</p>
+                    <div class="spotting-links">
+                        <a href="https://www.n2yo.com/" target="_blank" rel="noopener">N2YO.com</a>
+                        <a href="https://www.heavens-above.com/" target="_blank" rel="noopener">Heavens-Above</a>
+                        <a href="https://in-the-sky.org/satmap_worldmap.php" target="_blank" rel="noopener">In-The-Sky.org</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <span>🛰️ ISRO Space Dashboard</span>
+                    <p>An open-source project visualizing India's space program using public data.</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Data Sources</h4>
+                    <a href="https://github.com/AdityaAsopa/isro_api" target="_blank" rel="noopener">ISRO API by Aditya Asopa</a>
+                    <a href="https://www.isro.gov.in/" target="_blank" rel="noopener">ISRO Official Website</a>
+                    <a href="https://en.wikipedia.org/wiki/Indian_Space_Research_Organisation" target="_blank" rel="noopener">Wikipedia — ISRO</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Satellite Tracking</h4>
+                    <a href="https://www.n2yo.com/" target="_blank" rel="noopener">N2YO Live Tracking</a>
+                    <a href="https://www.heavens-above.com/" target="_blank" rel="noopener">Heavens Above</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>Data from <a href="https://isro.vercel.app" target="_blank" rel="noopener">isro.vercel.app</a> &amp; <a href="https://en.wikipedia.org" target="_blank" rel="noopener">Wikipedia</a>. Built with care for space enthusiasts everywhere.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-rocket">🚀</div>
+            <p>Loading ISRO data...</p>
+            <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
