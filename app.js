@@ -1,6 +1,7 @@
 // ===== ISRO Space Dashboard — Main Application =====
 
-const API_BASE = 'https://isro.vercel.app/api';
+// Data sourced from GitHub raw JSON files (the Vercel API at isro.vercel.app is no longer available)
+const DATA_BASE = 'https://raw.githubusercontent.com/AdityaAsopa/isro_api/dev/data';
 const WIKI_API = 'https://en.wikipedia.org/api/rest_v1/page/summary';
 
 // ===== State =====
@@ -21,11 +22,11 @@ async function fetchJSON(url) {
 
 async function loadAllData() {
     const [spacecraftData, launcherData, missionData, customerData, centreData] = await Promise.allSettled([
-        fetchJSON(`${API_BASE}/spacecrafts`),
-        fetchJSON(`${API_BASE}/launchers`),
-        fetchJSON(`${API_BASE}/spacecraft_missions`),
-        fetchJSON(`${API_BASE}/customer_satellites`),
-        fetchJSON(`${API_BASE}/centres`),
+        fetchJSON(`${DATA_BASE}/spacecrafts.json`),
+        fetchJSON(`${DATA_BASE}/launchers.json`),
+        fetchJSON(`${DATA_BASE}/spacecraft_missions.json`),
+        fetchJSON(`${DATA_BASE}/customer_satellites.json`),
+        fetchJSON(`${DATA_BASE}/centres.json`),
     ]);
 
     allSpacecraft = spacecraftData.status === 'fulfilled' ? (spacecraftData.value.spacecrafts || []) : [];
@@ -140,8 +141,9 @@ function getOrbitColor(orbit) {
 }
 
 function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    if (str === null || str === undefined) return '';
+    const s = String(str);
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // ===== Animated Counter =====
@@ -661,12 +663,13 @@ function buildCustomerSatellites() {
         <div class="customer-stat"><div class="customer-stat-num">${uniqueCountries}</div><div class="customer-stat-label">Countries Served</div></div>
     `;
 
-    document.getElementById('customer-grid').innerHTML = allCustomerSats.slice(0, 40).map(c => `
+    document.getElementById('customer-grid').innerHTML = allCustomerSats.map(c => `
         <div class="customer-card">
-            <div class="customer-card-name">${escapeHtml(c.name || c.satellite_name || 'Unknown')}</div>
+            <div class="customer-card-name">${escapeHtml(c.id || c.name || 'Unknown')}</div>
             <div class="customer-card-info">
                 ${c.launch_date ? `Launched: ${formatDate(c.launch_date)}` : ''}
-                ${c.launch_vehicle ? ` · ${escapeHtml(c.launch_vehicle)}` : ''}
+                ${c.launcher ? ` · ${escapeHtml(c.launcher)}` : ''}
+                ${c.mass_kg ? ` · ${c.mass_kg} kg` : ''}
             </div>
             ${c.country ? `<div class="customer-card-country"><span>${escapeHtml(c.country)}</span></div>` : ''}
         </div>
@@ -679,11 +682,9 @@ function buildCentres() {
 
     document.getElementById('centres-grid').innerHTML = allCentres.map(c => `
         <div class="centre-card">
-            <div class="centre-name">${escapeHtml(c.name || c.Name || '')}</div>
-            <div class="centre-id">${escapeHtml(c.id || c.acronym || c.Id || '')}</div>
+            <div class="centre-name">${escapeHtml(c.name)}</div>
             <div class="centre-location">
-                📍 ${escapeHtml(c.Place || c.place || c.location || c.state || '')}
-                ${(c.State || c.state) ? `, ${escapeHtml(c.State || c.state)}` : ''}
+                📍 ${escapeHtml(c.place || '')}${c.state ? `, ${escapeHtml(c.state)}` : ''}
             </div>
         </div>
     `).join('');
