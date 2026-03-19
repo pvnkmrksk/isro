@@ -793,13 +793,8 @@ async function init() {
         console.error('Failed to load data:', err);
     }
 
-    buildStats();
-    buildTimeline();
-    buildSpacecraftCatalog();
-    buildLaunchers();
-    buildOrbitVisualization();
-    buildCustomerSatellites();
-    buildCentres();
+    const builders = [buildStats, buildTimeline, buildSpacecraftCatalog, buildLaunchers, buildOrbitVisualization, buildCustomerSatellites, buildCentres];
+    builders.forEach(fn => { try { fn(); } catch (err) { console.error(`${fn.name} failed:`, err); } });
 
     setupSectionObserver();
 
