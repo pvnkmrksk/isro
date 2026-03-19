@@ -1,7 +1,8 @@
 // ===== ISRO Space Dashboard — Main Application =====
 
-// Data sourced from GitHub raw JSON files (the Vercel API at isro.vercel.app is no longer available)
-const DATA_BASE = 'https://raw.githubusercontent.com/AdityaAsopa/isro_api/dev/data';
+// Data sourced from local JSON files (bundled), with fallback to GitHub raw
+const DATA_LOCAL = 'data';
+const DATA_REMOTE = 'https://raw.githubusercontent.com/AdityaAsopa/isro_api/dev/data';
 const WIKI_API = 'https://en.wikipedia.org/api/rest_v1/page/summary';
 
 // ===== State =====
@@ -20,13 +21,21 @@ async function fetchJSON(url) {
     return res.json();
 }
 
+async function fetchWithFallback(filename) {
+    try {
+        return await fetchJSON(`${DATA_LOCAL}/${filename}`);
+    } catch {
+        return await fetchJSON(`${DATA_REMOTE}/${filename}`);
+    }
+}
+
 async function loadAllData() {
     const [spacecraftData, launcherData, missionData, customerData, centreData] = await Promise.allSettled([
-        fetchJSON(`${DATA_BASE}/spacecrafts.json`),
-        fetchJSON(`${DATA_BASE}/launchers.json`),
-        fetchJSON(`${DATA_BASE}/spacecraft_missions.json`),
-        fetchJSON(`${DATA_BASE}/customer_satellites.json`),
-        fetchJSON(`${DATA_BASE}/centres.json`),
+        fetchWithFallback('spacecrafts.json'),
+        fetchWithFallback('launchers.json'),
+        fetchWithFallback('spacecraft_missions.json'),
+        fetchWithFallback('customer_satellites.json'),
+        fetchWithFallback('centres.json'),
     ]);
 
     allSpacecraft = spacecraftData.status === 'fulfilled' ? (spacecraftData.value.spacecrafts || []) : [];
