@@ -1027,13 +1027,15 @@ function closeMapPopup() {
 
 // ===== Altitude / Scale of Space =====
 const ALTITUDE_REFERENCES = [
-    { alt: 0.83, label: 'Burj Khalifa', icon: '🏗️', type: 'ref' },
-    { alt: 11, label: 'Airplane cruise', icon: '✈️', type: 'ref' },
-    { alt: 35, label: 'Weather balloon', icon: '🎈', type: 'ref' },
+    { alt: 0, label: 'Sea Level — Earth Surface', icon: '🌍', type: 'ref', highlight: true },
+    { alt: 0.83, label: 'Burj Khalifa (828 m)', icon: '🏗️', type: 'ref' },
+    { alt: 8.85, label: 'Mount Everest', icon: '🏔️', type: 'ref' },
+    { alt: 11, label: 'Airplane cruise altitude', icon: '✈️', type: 'ref' },
+    { alt: 35, label: 'Weather balloon max', icon: '🎈', type: 'ref' },
     { alt: 100, label: 'Karman Line — Edge of Space', icon: '🌌', type: 'ref', highlight: true },
-    { alt: 160, label: 'LEO lower bound', icon: '🛸', type: 'zone' },
+    { alt: 160, label: 'LEO begins', icon: '🛸', type: 'zone' },
     { alt: 408, label: 'International Space Station', icon: '🛰️', type: 'ref' },
-    { alt: 2000, label: 'LEO upper bound', icon: '🛸', type: 'zone' },
+    { alt: 2000, label: 'LEO ends', icon: '🛸', type: 'zone' },
     { alt: 20200, label: 'GPS satellites (MEO)', icon: '📡', type: 'ref' },
     { alt: 35786, label: 'Geostationary orbit (GEO)', icon: '📡', type: 'ref', highlight: true },
     { alt: 384400, label: 'The Moon', icon: '🌕', type: 'ref', highlight: true },
@@ -1047,24 +1049,33 @@ function buildAltitudeSection() {
 
     if (!track || !scrollContainer) return;
 
-    // Use logarithmic scale: alt -> position
-    // Map 0 km to top, 384400 km (Moon) to bottom
+    // Logarithmic scale with an Earth surface header zone
     const maxAlt = 400000;
-    const trackHeight = 8000; // px total scroll height
+    const earthZoneH = 80; // px reserved for Earth surface at top
+    const trackHeight = 8000;
     track.style.height = trackHeight + 'px';
 
     function altToY(alt) {
-        if (alt <= 0) return 0;
-        return (Math.log10(alt + 1) / Math.log10(maxAlt)) * trackHeight;
+        if (alt <= 0) return earthZoneH / 2;
+        return earthZoneH + (Math.log10(alt + 1) / Math.log10(maxAlt)) * (trackHeight - earthZoneH);
     }
 
     function yToAlt(y) {
-        const frac = y / trackHeight;
+        if (y <= earthZoneH) return 0;
+        const frac = (y - earthZoneH) / (trackHeight - earthZoneH);
         return Math.pow(maxAlt, frac) - 1;
     }
 
+    // Earth surface banner at very top
+    const earthBanner = document.createElement('div');
+    earthBanner.className = 'altitude-earth-surface';
+    earthBanner.innerHTML = '🌍 Earth Surface — 0 km';
+    earthBanner.style.height = earthZoneH + 'px';
+    track.appendChild(earthBanner);
+
     // Render reference markers
     ALTITUDE_REFERENCES.forEach(ref => {
+        if (ref.alt === 0) return; // handled by banner
         const y = altToY(ref.alt);
         const marker = document.createElement('div');
         marker.className = `altitude-marker ${ref.highlight ? 'altitude-marker-highlight' : ''} ${ref.type === 'zone' ? 'altitude-marker-zone' : ''}`;
@@ -1080,10 +1091,9 @@ function buildAltitudeSection() {
     // Render ISRO spacecraft at their altitudes
     const spacecraftWithAlt = allSpacecraft.filter(s => s.altitude_km && s.altitude_km > 0 && s.orbit_type !== 'Failed');
 
-    // Group by approximate altitude to avoid overlap
     const altGroups = {};
     spacecraftWithAlt.forEach(sc => {
-        const bucket = Math.round(altToY(sc.altitude_km) / 20) * 20; // group within 20px
+        const bucket = Math.round(altToY(sc.altitude_km) / 20) * 20;
         if (!altGroups[bucket]) altGroups[bucket] = [];
         altGroups[bucket].push(sc);
     });
@@ -1133,6 +1143,52 @@ function buildAltitudeSection() {
             ? (nearest.alt / 1000).toLocaleString() + 'k km altitude'
             : nearest.alt + ' km altitude';
     });
+
+    // Scroll starts at Earth surface (top = 0), no action needed
+    scrollContainer.scrollTop = 0;
+}
+
+// ===== Earth Perspective — "You Are Here" =====
+function buildEarthPerspective() {
+    const container = document.getElementById('earth-perspective');
+    if (!container) return;
+
+    // Earth radius = 6371 km, GEO = 35786 km from surface = 42157 km from center
+    // Moon = 384400 km from surface
+    // Show Earth as a circle and GEO / LEO as tiny rings
+    const earthR = 6371;
+    const leoAlt = 400;
+    const geoAlt = 35786;
+    const moonDist = 384400;
+
+    // Scale: 1px = 100 km, Earth = 63.7px radius
+    const scale = 100;
+    const earthPx = earthR / scale;
+    const leoPx = (earthR + leoAlt) / scale;
+    const geoPx = (earthR + geoAlt) / scale;
+    const canvasSize = (geoPx + 30) * 2;
+
+    const totalActiveSats = allSpacecraft.filter(s => getStatusClass(s.status) === 'active').length;
+
+    container.innerHTML = `
+        <div class="perspective-viz" style="width:${canvasSize}px; height:${canvasSize}px;">
+            <div class="perspective-earth" style="width:${earthPx*2}px; height:${earthPx*2}px;">
+                <span>Earth</span>
+                <span class="perspective-earth-r">${earthR.toLocaleString()} km radius</span>
+            </div>
+            <div class="perspective-ring perspective-leo" style="width:${leoPx*2}px; height:${leoPx*2}px;" title="LEO ~400 km">
+                <span class="perspective-ring-label" style="top:-18px;">LEO (${leoAlt} km)</span>
+            </div>
+            <div class="perspective-ring perspective-geo" style="width:${geoPx*2}px; height:${geoPx*2}px;" title="GEO 35,786 km">
+                <span class="perspective-ring-label" style="top:-18px;">GEO (${geoAlt.toLocaleString()} km)</span>
+            </div>
+        </div>
+        <div class="perspective-caption">
+            <p>Earth is <strong>${earthR.toLocaleString()} km</strong> in radius. Low Earth Orbit (where most ISRO satellites live) is only <strong>${leoAlt} km</strong> above the surface — barely a thin shell.</p>
+            <p>Geostationary orbit is <strong>${geoAlt.toLocaleString()} km</strong> up — about 5.6 Earth radii from center. The Moon? It's <strong>${moonDist.toLocaleString()} km</strong> away — off this diagram entirely, about <strong>${Math.round(moonDist / (geoPx * scale))}x</strong> further than the edge of this view.</p>
+            <p class="perspective-stat">${totalActiveSats} ISRO spacecraft are currently active across these orbits.</p>
+        </div>
+    `;
 }
 
 // ===== Navigation =====
@@ -1240,7 +1296,7 @@ async function init() {
         }
     }
 
-    const builders = [buildStats, buildIndiaMap, buildAltitudeSection, buildTimeline, buildSpacecraftCatalog, buildLaunchers, buildOrbitScaleView, buildOrbitVisualization, buildCustomerSatellites, buildCentres];
+    const builders = [buildStats, buildIndiaMap, buildAltitudeSection, buildEarthPerspective, buildTimeline, buildSpacecraftCatalog, buildLaunchers, buildOrbitScaleView, buildOrbitVisualization, buildCustomerSatellites, buildCentres];
     builders.forEach(fn => { try { fn(); } catch (err) { console.error(`${fn.name} failed:`, err); } });
 
     // Hide loading

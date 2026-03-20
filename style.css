@@ -306,6 +306,48 @@ section { padding: 100px 0; position: relative; z-index: 1; }
 }
 .altitude-info-desc { font-size: 14px; color: var(--text-secondary); }
 
+.altitude-earth-surface {
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(to bottom, #1a5a2e, #0a2e14);
+    color: var(--accent-green); font-family: var(--font-display);
+    font-size: 14px; font-weight: 700; letter-spacing: 1px;
+    border-bottom: 2px solid var(--accent-green);
+}
+
+/* ===== Earth Perspective ===== */
+.earth-perspective-container {
+    display: flex; gap: 32px; align-items: center; justify-content: center; flex-wrap: wrap;
+}
+.perspective-viz {
+    position: relative; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    overflow: visible;
+}
+.perspective-earth {
+    position: absolute; border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #4ade80, #2563eb 50%, #1e3a5f);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 2;
+}
+.perspective-earth span { color: #fff; font-family: var(--font-display); font-weight: 700; font-size: 12px; }
+.perspective-earth-r { font-size: 9px !important; color: rgba(255,255,255,0.6) !important; font-weight: 400 !important; }
+.perspective-ring {
+    position: absolute; border-radius: 50%; border: 1px solid;
+    display: flex; align-items: flex-start; justify-content: center;
+}
+.perspective-leo { border-color: rgba(59, 130, 246, 0.5); }
+.perspective-geo { border-color: rgba(245, 158, 11, 0.3); border-style: dashed; }
+.perspective-ring-label {
+    position: absolute; font-size: 10px; color: var(--text-muted);
+    font-family: var(--font-display); font-weight: 600; white-space: nowrap;
+}
+.perspective-caption { max-width: 400px; }
+.perspective-caption p { font-size: 14px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 12px; }
+.perspective-stat {
+    font-family: var(--font-display); font-weight: 700; color: var(--accent-green) !important;
+    font-size: 15px !important;
+}
+
 /* ===== India Map ===== */
 .map-wrapper {
     display: grid; grid-template-columns: 1fr 280px; gap: 24px; align-items: start;
