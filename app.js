@@ -102,6 +102,21 @@ async function fetchWikiSummary(title) {
     return null;
 }
 
+// ===== Country Flags =====
+const COUNTRY_FLAGS = {
+    'Germany': '🇩🇪', 'South Korea': '🇰🇷', 'Belgium': '🇧🇪', 'Indonesia': '🇮🇩',
+    'Argentina': '🇦🇷', 'Italy': '🇮🇹', 'Israel': '🇮🇱', 'Canada': '🇨🇦',
+    'Japan': '🇯🇵', 'Netherlands': '🇳🇱', 'Denmark': '🇩🇰', 'Turkey': '🇹🇷',
+    'Switzerland': '🇨🇭', 'Algeria': '🇩🇿', 'Norway': '🇳🇴', 'Singapore': '🇸🇬',
+    'Luxembourg': '🇱🇺', 'France': '🇫🇷', 'Austria': '🇦🇹', 'Brazil': '🇧🇷',
+    'United Kingdom': '🇬🇧', 'United States': '🇺🇸', 'India': '🇮🇳',
+    'Sri Lanka': '🇱🇰', 'Spain': '🇪🇸', 'Finland': '🇫🇮', 'Malaysia': '🇲🇾',
+    'Australia': '🇦🇺', 'Chile': '🇨🇱', 'Colombia': '🇨🇴', 'Kazakhstan': '🇰🇿',
+    'Lithuania': '🇱🇹', 'Latvia': '🇱🇻', 'Czech Republic': '🇨🇿', 'Slovakia': '🇸🇰',
+    'Mongolia': '🇲🇳', 'Nigeria': '🇳🇬', 'Philippines': '🇵🇭', 'Thailand': '🇹🇭',
+    'UAE': '🇦🇪', 'United Arab Emirates': '🇦🇪',
+};
+
 // ===== Utility Functions =====
 function formatDate(dateStr) {
     if (!dateStr) return 'Unknown';
@@ -598,6 +613,13 @@ function setupOrbitModeToggle() {
             } else {
                 scaleView.style.display = 'none';
                 cartoonView.style.display = '';
+                // Force canvas resize when switching to interactive view
+                const canvas = document.getElementById('orbit-canvas');
+                if (canvas) {
+                    requestAnimationFrame(() => {
+                        window.dispatchEvent(new Event('resize'));
+                    });
+                }
             }
         });
     });
@@ -609,10 +631,10 @@ function buildOrbitScaleView() {
     if (!track || !scroll) return;
 
     const maxAlt = 45000;
-    const trackWidth = 6000;
+    const trackWidth = 4000;
     track.style.width = trackWidth + 'px';
 
-    function altToX(alt) { return (Math.sqrt(alt) / Math.sqrt(maxAlt)) * trackWidth; }
+    function altToX(alt) { return 40 + (Math.sqrt(alt) / Math.sqrt(maxAlt)) * (trackWidth - 60); }
 
     // Earth at left edge
     const earthEl = document.createElement('div');
@@ -755,6 +777,7 @@ function buildOrbitVisualization() {
 
     const resize = () => {
         const rect = container.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return; // Skip if not visible
         const dpr = window.devicePixelRatio || 1;
         canvas.width = rect.width * dpr;
         canvas.height = rect.height * dpr;
@@ -1026,17 +1049,25 @@ function buildCustomerSatellites() {
         <div class="customer-stat"><div class="customer-stat-num">${uniqueCountries}</div><div class="customer-stat-label">Countries Served</div></div>
     `;
 
-    document.getElementById('customer-grid').innerHTML = allCustomerSats.map(c => `
+    document.getElementById('customer-grid').innerHTML = allCustomerSats.map(c => {
+        const flag = COUNTRY_FLAGS[c.country] || '';
+        const satName = c.id || c.name || 'Unknown';
+        const wikiUrl = `https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(satName + ' satellite')}`;
+        return `
         <div class="customer-card">
-            <div class="customer-card-name">${escapeHtml(c.id || c.name || 'Unknown')}</div>
+            <div class="customer-card-header-row">
+                ${flag ? `<span class="customer-flag">${flag}</span>` : ''}
+                <div class="customer-card-name">${escapeHtml(satName)}</div>
+            </div>
             <div class="customer-card-info">
                 ${c.launch_date ? `Launched: ${formatDate(c.launch_date)}` : ''}
                 ${c.launcher ? ` · ${escapeHtml(c.launcher)}` : ''}
                 ${c.mass_kg ? ` · ${c.mass_kg} kg` : ''}
             </div>
-            ${c.country ? `<div class="customer-card-country"><span>${escapeHtml(c.country)}</span></div>` : ''}
-        </div>
-    `).join('');
+            ${c.country ? `<div class="customer-card-country">${flag} ${escapeHtml(c.country)}</div>` : ''}
+            <a href="${wikiUrl}" target="_blank" rel="noopener" class="customer-wiki-link">📖 Wiki</a>
+        </div>`;
+    }).join('');
 }
 
 // ===== Centres =====
@@ -1121,22 +1152,8 @@ function indiaPathD() {
 }
 
 function buildIndiaMap() {
-    if (allCentres.length === 0) return;
-
-    const svg = document.getElementById('india-svg');
-    const outline = document.getElementById('india-outline');
-    const dotsGroup = document.getElementById('map-dots');
-    const sidebar = document.getElementById('map-sidebar-list');
-    const popup = document.getElementById('map-popup');
-    const popupContent = document.getElementById('map-popup-content');
-
-    // Set real India path from GeoJSON (DataMeet composite with India's full claimed boundary)
-    svg.setAttribute('viewBox', '0 0 500 600');
-    outline.setAttribute('d', indiaPathD());
-
-    // Remove Sri Lanka ellipse if present
-    const sri = svg.querySelector('.sri-lanka');
-    if (sri) sri.remove();
+    const container = document.getElementById('globe-container');
+    if (!container || allCentres.length === 0) return;
 
     // Group centres by city
     const byCity = {};
@@ -1146,87 +1163,126 @@ function buildIndiaMap() {
         byCity[city].push(c);
     });
 
-    const cityEntries = Object.entries(byCity).sort((a, b) => a[0].localeCompare(b[0]));
-    let hideTimeout;
+    // Prepare points data — bigger cities sort last so they render on top
+    const pointsData = Object.entries(byCity)
+        .map(([city, centres]) => {
+            const coords = CENTRE_COORDS[city];
+            if (!coords) return null;
+            const isLaunchPad = city === 'Sriharikota';
+            const isHQ = city === 'Bengaluru';
+            const count = centres.length;
+            return {
+                lat: coords[0], lng: coords[1], city,
+                state: centres[0]?.state || '', centres, count,
+                size: Math.max(0.15, Math.log(count + 1) * 0.2),
+                color: isLaunchPad ? '#ef4444' : isHQ ? '#06b6d4' : '#3b82f6',
+                isLaunchPad, isHQ,
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.count - b.count);
 
-    cityEntries.forEach(([city, centres]) => {
-        const coords = CENTRE_COORDS[city];
-        if (!coords) return;
+    // Build India GeoJSON polygon from existing coordinate data
+    const indiaGeoJSON = {
+        type: 'Feature', properties: { name: 'India' },
+        geometry: { type: 'Polygon', coordinates: [INDIA_COORDS.map(c => [c[0], c[1]])] }
+    };
+    const islandFeatures = INDIA_ISLANDS.map(island => ({
+        type: 'Feature', properties: { name: 'India' },
+        geometry: { type: 'Polygon', coordinates: [island.map(c => [c[0], c[1]])] }
+    }));
 
-        const { x, y } = geoToSvg(coords[0], coords[1]);
-        const isLaunchPad = city === 'Sriharikota';
-        const isHQ = city === 'Bengaluru';
-        // Proportional radius: log-scaled by number of sites, with min/max caps
-        const count = centres.length;
-        const minR = 3.5, maxR = 10;
-        const logR = minR + (Math.log(count + 1) / Math.log(10)) * (maxR - minR);
-        const r = Math.min(maxR, Math.max(minR, isLaunchPad ? Math.max(logR, 6) : isHQ ? Math.max(logR, 5) : logR));
-        const color = isLaunchPad ? 'var(--accent-red)' : isHQ ? 'var(--accent-cyan)' : 'var(--accent-blue)';
+    const globe = Globe()
+        .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+        .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+        .backgroundColor('rgba(0,0,0,0)')
+        .atmosphereColor('#3b82f6')
+        .atmosphereAltitude(0.15)
+        .showGraticules(true)
+        .width(container.offsetWidth)
+        .height(Math.min(600, window.innerHeight * 0.7))
+        .pointOfView({ lat: 20.5937, lng: 78.9629, altitude: 1.8 })
+        // India boundary — blue line with haze gradient fill
+        .polygonsData([indiaGeoJSON, ...islandFeatures])
+        .polygonCapColor(() => 'rgba(59, 130, 246, 0.08)')
+        .polygonSideColor(() => 'rgba(59, 130, 246, 0.05)')
+        .polygonStrokeColor(() => '#3b82f6')
+        .polygonAltitude(0.006)
+        // ISRO centres as 3D points
+        .pointsData(pointsData)
+        .pointLat('lat')
+        .pointLng('lng')
+        .pointColor('color')
+        .pointAltitude(d => d.size * 0.06)
+        .pointRadius(d => d.size * 0.5)
+        // Hover tooltip — each site name IS the Google Maps link (no separate button)
+        .pointLabel(d => {
+            const items = d.centres.map(c => {
+                const url = `https://www.google.com/maps/search/${encodeURIComponent(c.name + ' ' + d.city)}/@${d.lat},${d.lng},14z`;
+                return `<a href="${url}" target="_blank" rel="noopener" style="display:block;padding:4px 0;color:#06b6d4;text-decoration:none;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.08);transition:color 0.2s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='#06b6d4'">${escapeHtml(c.name)}</a>`;
+            }).join('');
+            return `<div style="background:rgba(17,24,39,0.95);backdrop-filter:blur(12px);border:1px solid rgba(59,130,246,0.3);border-radius:12px;padding:14px 18px;min-width:200px;max-width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+                <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;color:#06b6d4;margin-bottom:4px;">${escapeHtml(d.city)}, ${escapeHtml(d.state)}</div>
+                <div style="font-size:11px;color:#64748b;margin-bottom:8px;">${d.count} centre${d.count > 1 ? 's' : ''}</div>
+                <div>${items}</div>
+            </div>`;
+        })
+        // Labels for bigger cities (like Google Maps labels — fade when small)
+        .labelsData(pointsData.filter(d => d.count >= 2 || d.isLaunchPad))
+        .labelLat('lat')
+        .labelLng('lng')
+        .labelText('city')
+        .labelSize(d => 0.6 + d.count * 0.08)
+        .labelDotRadius(d => d.size * 0.4)
+        .labelColor(() => 'rgba(240, 244, 255, 0.85)')
+        .labelResolution(2)
+        .labelAltitude(d => d.size * 0.06 + 0.007)
+        (container);
 
-        // Glow circle
-        const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        glow.setAttribute('cx', x); glow.setAttribute('cy', y);
-        glow.setAttribute('r', r + 4); glow.setAttribute('fill', color);
-        glow.setAttribute('opacity', '0.2'); glow.setAttribute('class', 'map-dot-glow');
-        dotsGroup.appendChild(glow);
+    // Smooth auto-rotate
+    globe.controls().autoRotate = true;
+    globe.controls().autoRotateSpeed = 0.3;
+    globe.controls().enableDamping = true;
+    globe.controls().dampingFactor = 0.1;
 
-        // Main dot
-        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        circle.setAttribute('cx', x); circle.setAttribute('cy', y);
-        circle.setAttribute('r', r); circle.setAttribute('fill', color);
-        circle.setAttribute('class', 'map-dot'); circle.setAttribute('data-city', city);
-        dotsGroup.appendChild(circle);
+    // Pause auto-rotate on interaction, resume after 5s
+    let resumeTimer;
+    const pauseRotation = () => { globe.controls().autoRotate = false; };
+    const scheduleResume = () => {
+        clearTimeout(resumeTimer);
+        resumeTimer = setTimeout(() => { globe.controls().autoRotate = true; }, 5000);
+    };
+    container.addEventListener('mousedown', pauseRotation);
+    container.addEventListener('touchstart', pauseRotation);
+    container.addEventListener('mouseup', scheduleResume);
+    container.addEventListener('touchend', scheduleResume);
 
-        // Hover interactions on dot
-        const gmapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(centres[0].name + ' ' + city)}/@${coords[0]},${coords[1]},14z`;
-
-        const showPopup = () => {
-            clearTimeout(hideTimeout);
-            popupContent.innerHTML = `
-                <h4 class="map-popup-city">${escapeHtml(city)}, ${escapeHtml(centres[0]?.state || '')}</h4>
-                <div class="map-popup-list">
-                    ${centres.map(c => `<div class="map-popup-centre">${escapeHtml(c.name)}</div>`).join('')}
-                </div>
-                <a href="${gmapsUrl}" target="_blank" rel="noopener" class="map-popup-gmaps">Open in Google Maps</a>
-            `;
-            const svgRect = svg.getBoundingClientRect();
-            const scaleX = svgRect.width / 500;
-            const scaleY = svgRect.height / 550;
-            let left = x * scaleX + 15;
-            let top = y * scaleY - 10;
-            const containerW = svgRect.width;
-            if (left > containerW * 0.55) left = x * scaleX - 230;
-            if (top > svgRect.height * 0.7) top = y * scaleY - 80;
-            popup.style.left = Math.max(0, left) + 'px';
-            popup.style.top = Math.max(0, top) + 'px';
-            popup.classList.remove('hidden');
-        };
-        const scheduleHide = () => { hideTimeout = setTimeout(() => popup.classList.add('hidden'), 200); };
-
-        circle.addEventListener('mouseenter', showPopup);
-        circle.addEventListener('mouseleave', scheduleHide);
-        glow.addEventListener('mouseenter', showPopup);
-        glow.addEventListener('mouseleave', scheduleHide);
-
-        // Sidebar entry
-        const item = document.createElement('div');
-        item.className = 'map-sidebar-item';
-        item.innerHTML = `
-            <div class="map-sidebar-city">${escapeHtml(city)}</div>
-            <div class="map-sidebar-count">${centres.length}</div>
-        `;
-        item.addEventListener('mouseenter', () => { showPopup(); circle.setAttribute('r', r + 3); });
-        item.addEventListener('mouseleave', () => { scheduleHide(); circle.setAttribute('r', r); });
-        sidebar.appendChild(item);
+    // Responsive resize
+    window.addEventListener('resize', () => {
+        globe.width(container.offsetWidth);
+        globe.height(Math.min(600, window.innerHeight * 0.7));
     });
 
-    // Keep popup visible when hovering over it
-    popup.addEventListener('mouseenter', () => clearTimeout(hideTimeout));
-    popup.addEventListener('mouseleave', () => { hideTimeout = setTimeout(() => popup.classList.add('hidden'), 200); });
-}
-
-function closeMapPopup() {
-    document.getElementById('map-popup').classList.add('hidden');
+    // Sidebar — click to fly to location
+    const sidebar = document.getElementById('map-sidebar-list');
+    if (sidebar) {
+        const sorted = [...pointsData].sort((a, b) => b.count - a.count || a.city.localeCompare(b.city));
+        sidebar.innerHTML = '';
+        sorted.forEach(d => {
+            const item = document.createElement('div');
+            item.className = 'map-sidebar-item';
+            item.innerHTML = `
+                <div class="map-sidebar-city">${escapeHtml(d.city)}</div>
+                <div class="map-sidebar-count">${d.count}</div>
+            `;
+            item.addEventListener('click', () => {
+                globe.pointOfView({ lat: d.lat, lng: d.lng, altitude: 0.8 }, 1000);
+                pauseRotation();
+                scheduleResume();
+            });
+            sidebar.appendChild(item);
+        });
+    }
 }
 
 // ===== Altitude / Scale of Space =====
@@ -1396,19 +1452,22 @@ function setupNavigation() {
         document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50);
     });
 
-    // Active nav link
+    // Active nav link — bidirectional highlight (works scrolling up and down)
     const sections = document.querySelectorAll('section[id]');
     const navLinks = document.querySelectorAll('.nav-links a');
 
+    // Use a narrow rootMargin band so only the section crossing ~30% from top gets highlighted
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                navLinks.forEach(link => {
-                    link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id);
-                });
+            const link = document.querySelector(`.nav-links a[href="#${entry.target.id}"]`);
+            if (link) {
+                if (entry.isIntersecting) {
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    link.classList.add('active');
+                }
             }
         });
-    }, { threshold: 0.3 });
+    }, { threshold: 0, rootMargin: '-25% 0px -70% 0px' });
 
     sections.forEach(s => observer.observe(s));
 

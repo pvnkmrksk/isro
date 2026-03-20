@@ -8,6 +8,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="//unpkg.com/globe.gl"></script>
 </head>
 <body>
     <div id="stars-bg"></div>
@@ -29,6 +30,7 @@
             <a href="#spacecraft">Spacecraft</a>
             <a href="#launchers">Rockets</a>
             <a href="#orbits">Orbits</a>
+            <a href="#customers">Customers</a>
         </div>
         <button class="nav-toggle" aria-label="Toggle menu">
             <span></span><span></span><span></span>
@@ -58,25 +60,15 @@
         </div>
     </section>
 
-    <!-- India Map Section -->
+    <!-- India Map Section — 3D Globe -->
     <section id="india-map">
         <div class="container">
             <div class="section-header">
                 <h2 class="section-title">ISRO Across <span class="gradient-text">India</span></h2>
-                <p class="section-desc">44 research centres, launch pads, and tracking stations — click any location to explore</p>
+                <p class="section-desc">44 research centres, launch pads, and tracking stations — explore the 3D globe</p>
             </div>
             <div class="map-wrapper">
-                <div class="map-container" id="map-container">
-                    <svg id="india-svg" viewBox="0 0 500 600" xmlns="http://www.w3.org/2000/svg">
-                        <path id="india-outline" d="" />
-                        <g id="map-dots"></g>
-                    </svg>
-                    <!-- Map popup -->
-                    <div id="map-popup" class="map-popup hidden">
-                        <button class="map-popup-close" onclick="closeMapPopup()">&times;</button>
-                        <div id="map-popup-content"></div>
-                    </div>
-                </div>
+                <div class="globe-container" id="globe-container"></div>
                 <div class="map-sidebar" id="map-sidebar">
                     <h3 class="map-sidebar-title">Locations</h3>
                     <div class="map-sidebar-list" id="map-sidebar-list"></div>
@@ -308,12 +300,14 @@
                 <div class="footer-brand">
                     <span>🛰️ ISRO Space Dashboard</span>
                     <p>An open-source project visualizing India's space program using public data.</p>
+                    <p class="footer-credit">Made with ❤️ by <a href="https://github.com/pvnkmrksk" target="_blank" rel="noopener">pvnkmrksk</a></p>
                 </div>
                 <div class="footer-links">
-                    <h4>Data Sources</h4>
+                    <h4>Sources</h4>
                     <a href="https://github.com/AdityaAsopa/isro_api" target="_blank" rel="noopener">ISRO API by Aditya Asopa</a>
                     <a href="https://www.isro.gov.in/" target="_blank" rel="noopener">ISRO Official Website</a>
                     <a href="https://en.wikipedia.org/wiki/Indian_Space_Research_Organisation" target="_blank" rel="noopener">Wikipedia — ISRO</a>
+                    <a href="https://github.com/datameet/maps" target="_blank" rel="noopener">DataMeet Maps (India GeoJSON)</a>
                 </div>
                 <div class="footer-links">
                     <h4>Satellite Tracking</h4>
@@ -324,7 +318,7 @@
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>Data from <a href="https://github.com/AdityaAsopa/isro_api" target="_blank" rel="noopener">ISRO API (GitHub)</a> &amp; <a href="https://en.wikipedia.org" target="_blank" rel="noopener">Wikipedia</a>. Images from Wikimedia Commons (GODL/CC). Built with care for space enthusiasts.</p>
+                <p>Data from <a href="https://github.com/AdityaAsopa/isro_api" target="_blank" rel="noopener">ISRO API (GitHub)</a> &amp; <a href="https://en.wikipedia.org" target="_blank" rel="noopener">Wikipedia</a>. Images from Wikimedia Commons (GODL/CC). Globe powered by <a href="https://globe.gl" target="_blank" rel="noopener">Globe.gl</a>.</p>
             </div>
         </div>
     </footer>
