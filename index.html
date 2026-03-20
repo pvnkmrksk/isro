@@ -4,13 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ISRO Space Dashboard — India's Journey to the Stars</title>
-    <meta name="description" content="Explore ISRO's complete space program: satellites, launch vehicles, missions, and live orbital tracking. An open-source dashboard built from public data.">
+    <meta name="description" content="Explore ISRO's complete space program: satellites, launch vehicles, missions, orbital tracking, and an interactive map of India's space infrastructure.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Stars background -->
     <div id="stars-bg"></div>
 
     <!-- Navigation -->
@@ -22,11 +21,12 @@
         <div class="nav-links">
             <a href="#hero">Home</a>
             <a href="#stats">Overview</a>
+            <a href="#india-map">Map</a>
+            <a href="#altitude">How High</a>
             <a href="#timeline">Timeline</a>
             <a href="#spacecraft">Spacecraft</a>
-            <a href="#launchers">Launchers</a>
+            <a href="#launchers">Rockets</a>
             <a href="#orbits">Orbits</a>
-            <a href="#centres">Centres</a>
         </div>
         <button class="nav-toggle" aria-label="Toggle menu">
             <span></span><span></span><span></span>
@@ -40,54 +40,122 @@
             <h1 class="hero-title">
                 <span class="gradient-text">ISRO</span> Space Dashboard
             </h1>
-            <p class="hero-desc">From Aryabhata to Chandrayaan — track every satellite, every launch vehicle, every mission. See where India's space objects are right now, learn their stories, and discover 50+ years of reaching for the stars.</p>
+            <p class="hero-desc">From Aryabhata to Chandrayaan — track every satellite, every launch vehicle, every mission. See where India's spacecraft orbit, explore 50+ years of reaching for the stars, and discover the infrastructure behind it all.</p>
             <div class="hero-actions">
-                <a href="#spacecraft" class="btn btn-primary">Explore Spacecraft</a>
-                <a href="#timeline" class="btn btn-outline">View Timeline</a>
+                <a href="#india-map" class="btn btn-primary">Explore the Map</a>
+                <a href="#altitude" class="btn btn-outline">How High is Space?</a>
             </div>
         </div>
-        <div class="hero-visual" id="hero-orbit-viz">
-            <!-- Animated orbit rings rendered by JS -->
-        </div>
+        <div class="hero-visual" id="hero-orbit-viz"></div>
     </section>
 
     <!-- Stats Section -->
     <section id="stats">
         <div class="container">
-            <div class="stats-grid" id="stats-grid">
-                <!-- Populated by JS -->
+            <div class="stats-grid" id="stats-grid"></div>
+        </div>
+    </section>
+
+    <!-- India Map Section -->
+    <section id="india-map">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">ISRO Across <span class="gradient-text">India</span></h2>
+                <p class="section-desc">44 research centres, launch pads, and tracking stations — click any location to explore</p>
+            </div>
+            <div class="map-wrapper">
+                <div class="map-container" id="map-container">
+                    <svg id="india-svg" viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
+                        <!-- India outline -->
+                        <path id="india-outline" d="
+                            M 100,15 L 107,10 L 118,8 L 130,18 L 140,30
+                            L 148,38 L 158,48 L 168,55 L 178,62 L 188,72
+                            L 200,80 L 215,90 L 230,100 L 245,110 L 258,118
+                            L 270,124 L 278,128 L 285,130 L 290,135 L 295,140
+                            L 310,128 L 320,120 L 335,115 L 350,110 L 370,107
+                            L 385,112 L 375,120 L 360,128 L 345,135 L 335,142
+                            L 325,150 L 310,155 L 298,165 L 290,178 L 285,190
+                            L 280,200 L 275,210 L 270,218 L 262,228 L 255,240
+                            L 245,255 L 235,268 L 222,282 L 210,295 L 198,308
+                            L 188,318 L 180,328 L 175,340 L 172,355 L 170,370
+                            L 168,385 L 165,400 L 160,415 L 152,430 L 145,442
+                            L 138,452 L 130,458 L 125,450 L 120,438 L 115,425
+                            L 110,412 L 105,398 L 100,385 L 96,370 L 93,358
+                            L 90,345 L 87,332 L 84,318 L 82,305 L 80,292
+                            L 78,278 L 76,265 L 74,252 L 72,240 L 70,228
+                            L 68,218 L 65,210 L 55,205 L 42,210 L 30,215
+                            L 22,205 L 18,192 L 20,180 L 25,170 L 30,160
+                            L 35,148 L 38,138 L 42,128 L 48,115 L 55,102
+                            L 62,90 L 68,78 L 75,65 L 82,52 L 88,40
+                            L 93,30 L 97,22 Z
+                        " />
+                        <!-- Sri Lanka hint -->
+                        <ellipse cx="165" cy="472" rx="12" ry="16" class="sri-lanka" />
+                        <!-- Centre dots rendered by JS -->
+                        <g id="map-dots"></g>
+                    </svg>
+                    <!-- Map popup -->
+                    <div id="map-popup" class="map-popup hidden">
+                        <button class="map-popup-close" onclick="closeMapPopup()">&times;</button>
+                        <div id="map-popup-content"></div>
+                    </div>
+                </div>
+                <div class="map-sidebar" id="map-sidebar">
+                    <h3 class="map-sidebar-title">Locations</h3>
+                    <div class="map-sidebar-list" id="map-sidebar-list"></div>
+                </div>
             </div>
         </div>
     </section>
 
-    <!-- Timeline Section -->
+    <!-- Scale of Space / Altitude Section -->
+    <section id="altitude">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">How High is <span class="gradient-text">Space</span>?</h2>
+                <p class="section-desc">Scroll through Earth's atmosphere and beyond — from skyscrapers to the Moon, with every ISRO satellite at its real orbital altitude</p>
+            </div>
+            <div class="altitude-outer">
+                <div class="altitude-scale-bar" id="altitude-scale-bar">
+                    <div class="altitude-current-label" id="altitude-current-label">0 km</div>
+                </div>
+                <div class="altitude-scroll-container" id="altitude-scroll">
+                    <div class="altitude-track" id="altitude-track">
+                        <!-- Markers and satellites rendered by JS -->
+                    </div>
+                </div>
+                <div class="altitude-info-panel" id="altitude-info-panel">
+                    <div class="altitude-info-title">Scroll to explore</div>
+                    <div class="altitude-info-desc">Journey from sea level to the Moon</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Mission Timeline -->
     <section id="timeline">
         <div class="container">
             <div class="section-header">
                 <h2 class="section-title">Mission <span class="gradient-text">Timeline</span></h2>
-                <p class="section-desc">Every spacecraft launched by ISRO, from the very first to the latest</p>
+                <p class="section-desc">Every spacecraft launched by ISRO, from Aryabhata (1975) to today</p>
             </div>
             <div class="timeline-controls">
                 <div class="timeline-filters">
                     <button class="filter-btn active" data-filter="all">All</button>
                     <button class="filter-btn" data-filter="active">Active</button>
-                    <button class="filter-btn" data-filter="decommissioned">Decommissioned</button>
+                    <button class="filter-btn" data-filter="decommissioned">Retired</button>
                     <button class="filter-btn" data-filter="failed">Failed</button>
                 </div>
-                <div class="timeline-decade-nav" id="decade-nav">
-                    <!-- Populated by JS -->
-                </div>
+                <div class="timeline-decade-nav" id="decade-nav"></div>
             </div>
             <div class="timeline-wrapper">
                 <div class="timeline-line"></div>
-                <div id="timeline-items" class="timeline-items">
-                    <!-- Populated by JS -->
-                </div>
+                <div id="timeline-items" class="timeline-items"></div>
             </div>
         </div>
     </section>
 
-    <!-- Spacecraft Catalog Section -->
+    <!-- Spacecraft Catalog -->
     <section id="spacecraft">
         <div class="container">
             <div class="section-header">
@@ -126,9 +194,7 @@
                 </div>
             </div>
             <div class="catalog-stats" id="catalog-stats"></div>
-            <div id="spacecraft-grid" class="spacecraft-grid">
-                <!-- Populated by JS -->
-            </div>
+            <div id="spacecraft-grid" class="spacecraft-grid"></div>
         </div>
     </section>
 
@@ -137,9 +203,7 @@
         <div class="modal-backdrop"></div>
         <div class="modal-content">
             <button class="modal-close" aria-label="Close">&times;</button>
-            <div id="modal-body">
-                <!-- Populated by JS -->
-            </div>
+            <div id="modal-body"></div>
         </div>
     </div>
 
@@ -148,11 +212,9 @@
         <div class="container">
             <div class="section-header">
                 <h2 class="section-title">Launch <span class="gradient-text">Vehicles</span></h2>
-                <p class="section-desc">The rockets that carry India's dreams to orbit</p>
+                <p class="section-desc">The rockets that carry India's dreams to orbit — with images and stories from Wikipedia</p>
             </div>
-            <div id="launcher-families" class="launcher-families">
-                <!-- Populated by JS -->
-            </div>
+            <div id="launcher-families" class="launcher-families"></div>
         </div>
     </section>
 
@@ -163,12 +225,30 @@
                 <h2 class="section-title">Orbital <span class="gradient-text">Map</span></h2>
                 <p class="section-desc">Where ISRO's spacecraft orbit — from low Earth orbit to geostationary and beyond</p>
             </div>
-            <div class="orbit-legend" id="orbit-legend"></div>
-            <div class="orbit-viz-container">
-                <canvas id="orbit-canvas"></canvas>
-                <div id="orbit-tooltip" class="orbit-tooltip"></div>
+            <div class="orbit-mode-toggle">
+                <button class="orbit-mode-btn active" data-mode="scale">To Scale</button>
+                <button class="orbit-mode-btn" data-mode="cartoon">Interactive</button>
             </div>
-            <div id="orbit-stats" class="orbit-stats-grid"></div>
+
+            <!-- To-scale orbit view -->
+            <div id="orbit-scale-view" class="orbit-scale-view">
+                <div class="orbit-scale-earth-label">Earth (not to scale — would be a tiny dot)</div>
+                <div class="orbit-scale-scroll" id="orbit-scale-scroll">
+                    <div class="orbit-scale-track" id="orbit-scale-track">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cartoon orbit view (hidden initially) -->
+            <div id="orbit-cartoon-view" class="orbit-cartoon-view" style="display:none;">
+                <div class="orbit-legend" id="orbit-legend"></div>
+                <div class="orbit-viz-container">
+                    <canvas id="orbit-canvas"></canvas>
+                    <div id="orbit-tooltip" class="orbit-tooltip"></div>
+                </div>
+                <div id="orbit-stats" class="orbit-stats-grid"></div>
+            </div>
         </div>
     </section>
 
@@ -180,9 +260,7 @@
                 <p class="section-desc">Foreign satellites launched by ISRO — a trusted partner for the world</p>
             </div>
             <div id="customer-stats" class="customer-stats"></div>
-            <div id="customer-grid" class="customer-grid">
-                <!-- Populated by JS -->
-            </div>
+            <div id="customer-grid" class="customer-grid"></div>
         </div>
     </section>
 
@@ -191,45 +269,42 @@
         <div class="container">
             <div class="section-header">
                 <h2 class="section-title">Research <span class="gradient-text">Centres</span></h2>
-                <p class="section-desc">ISRO's network of research and development facilities across India</p>
+                <p class="section-desc">ISRO's network of facilities across India</p>
             </div>
-            <div id="centres-grid" class="centres-grid">
-                <!-- Populated by JS -->
-            </div>
+            <div id="centres-grid" class="centres-grid"></div>
         </div>
     </section>
 
-    <!-- Satellite Spotting Section -->
+    <!-- Satellite Spotting -->
     <section id="spotting">
         <div class="container">
             <div class="section-header">
                 <h2 class="section-title">Spot a <span class="gradient-text">Satellite</span></h2>
-                <p class="section-desc">Want to see an ISRO satellite pass overhead? Here's how you can try</p>
+                <p class="section-desc">Want to see an ISRO satellite pass overhead? Here's how</p>
             </div>
             <div class="spotting-content">
                 <div class="spotting-card">
                     <div class="spotting-icon">🔭</div>
                     <h3>When to Look</h3>
-                    <p>The best time to spot satellites is during twilight — just after sunset or before sunrise. The sky is dark but the satellite is still lit by the sun above the horizon.</p>
+                    <p>The best time is during twilight — just after sunset or before sunrise. The sky is dark but the satellite is still lit by the sun.</p>
                 </div>
                 <div class="spotting-card">
                     <div class="spotting-icon">🌍</div>
                     <h3>LEO Satellites</h3>
-                    <p>Low Earth Orbit satellites (like Cartosat, RISAT) move quickly across the sky in 2-5 minutes. They look like bright, steadily moving stars — no blinking!</p>
+                    <p>Low Earth Orbit satellites move quickly across the sky in 2-5 minutes. They look like bright, steadily moving stars — no blinking!</p>
                 </div>
                 <div class="spotting-card">
                     <div class="spotting-icon">📡</div>
                     <h3>GEO Satellites</h3>
-                    <p>Geostationary satellites (like INSAT, GSAT) appear fixed in the sky. They're much harder to spot with the naked eye — you'd need a telescope and dark skies.</p>
+                    <p>Geostationary satellites appear fixed in the sky. They're harder to spot — you'd need a telescope and dark skies.</p>
                 </div>
                 <div class="spotting-card">
                     <div class="spotting-icon">🌐</div>
                     <h3>Tracking Tools</h3>
-                    <p>Use these free tools to find exactly when ISRO satellites pass over your location:</p>
+                    <p>Use these free tools to find when ISRO satellites pass over your location:</p>
                     <div class="spotting-links">
                         <a href="https://www.n2yo.com/" target="_blank" rel="noopener">N2YO.com</a>
                         <a href="https://www.heavens-above.com/" target="_blank" rel="noopener">Heavens-Above</a>
-                        <a href="https://in-the-sky.org/satmap_worldmap.php" target="_blank" rel="noopener">In-The-Sky.org</a>
                     </div>
                 </div>
             </div>
@@ -251,13 +326,12 @@
                     <a href="https://en.wikipedia.org/wiki/Indian_Space_Research_Organisation" target="_blank" rel="noopener">Wikipedia — ISRO</a>
                 </div>
                 <div class="footer-links">
-                    <h4>Satellite Tracking</h4>
-                    <a href="https://www.n2yo.com/" target="_blank" rel="noopener">N2YO Live Tracking</a>
-                    <a href="https://www.heavens-above.com/" target="_blank" rel="noopener">Heavens Above</a>
+                    <h4>Images</h4>
+                    <p style="font-size:12px;color:var(--text-muted);">Rocket and spacecraft images from Wikimedia Commons under GODL / CC licenses. Thumbnails served via Wikipedia REST API.</p>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>Data from <a href="https://github.com/AdityaAsopa/isro_api" target="_blank" rel="noopener">ISRO API (GitHub)</a> &amp; <a href="https://en.wikipedia.org" target="_blank" rel="noopener">Wikipedia</a>. Built with care for space enthusiasts everywhere.</p>
+                <p>Data from <a href="https://github.com/AdityaAsopa/isro_api" target="_blank" rel="noopener">ISRO API (GitHub)</a> &amp; <a href="https://en.wikipedia.org" target="_blank" rel="noopener">Wikipedia</a>. Built with care for space enthusiasts.</p>
             </div>
         </div>
     </footer>
