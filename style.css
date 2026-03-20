@@ -328,12 +328,17 @@ section { padding: 100px 0; position: relative; z-index: 1; }
 }
 .altitude-info-desc { font-size: 14px; color: var(--text-secondary); }
 
-.altitude-earth-surface {
+/* Fixed Earth bar at top of altitude scroll */
+.altitude-earth-bar {
+    position: sticky; top: 0; z-index: 5;
     display: flex; align-items: center; justify-content: center;
+    padding: 10px; min-height: 44px;
     background: linear-gradient(to bottom, #1a5a2e, #0a2e14);
-    color: var(--accent-green); font-family: var(--font-display);
-    font-size: 14px; font-weight: 700; letter-spacing: 1px;
     border-bottom: 2px solid var(--accent-green);
+}
+.altitude-earth-bar-label {
+    font-family: var(--font-display); font-size: 14px; font-weight: 700;
+    color: var(--accent-green); letter-spacing: 1px;
 }
 
 /* ===== Earth Perspective ===== */

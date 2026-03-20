@@ -1223,18 +1223,18 @@ function closeMapPopup() {
 
 // ===== Altitude / Scale of Space =====
 const ALTITUDE_REFERENCES = [
-    { alt: 0, label: 'Sea Level — Earth Surface', icon: '🌍', type: 'ref', highlight: true },
-    { alt: 0.83, label: 'Burj Khalifa (828 m)', icon: '🏗️', type: 'ref' },
-    { alt: 8.85, label: 'Mount Everest', icon: '🏔️', type: 'ref' },
-    { alt: 11, label: 'Airplane cruise altitude', icon: '✈️', type: 'ref' },
-    { alt: 35, label: 'Weather balloon max', icon: '🎈', type: 'ref' },
-    { alt: 100, label: 'Karman Line — Edge of Space', icon: '🌌', type: 'ref', highlight: true },
-    { alt: 160, label: 'LEO begins', icon: '🛸', type: 'zone' },
-    { alt: 408, label: 'International Space Station', icon: '🛰️', type: 'ref' },
-    { alt: 2000, label: 'LEO ends', icon: '🛸', type: 'zone' },
-    { alt: 20200, label: 'GPS satellites (MEO)', icon: '📡', type: 'ref' },
-    { alt: 35786, label: 'Geostationary orbit (GEO)', icon: '📡', type: 'ref', highlight: true },
-    { alt: 384400, label: 'The Moon', icon: '🌕', type: 'ref', highlight: true },
+    { alt: 0, label: 'Sea Level', icon: '🌍', highlight: true },
+    { alt: 0.83, label: 'Burj Khalifa (828 m)', icon: '🏗️' },
+    { alt: 8.85, label: 'Mount Everest', icon: '🏔️' },
+    { alt: 11, label: 'Airplane cruise', icon: '✈️' },
+    { alt: 35, label: 'Weather balloon max', icon: '🎈' },
+    { alt: 100, label: 'Karman Line — Edge of Space', icon: '🌌', highlight: true },
+    { alt: 160, label: 'LEO begins', icon: '🛸', zone: true },
+    { alt: 408, label: 'ISS orbit', icon: '🛰️' },
+    { alt: 2000, label: 'LEO ends', icon: '🛸', zone: true },
+    { alt: 20200, label: 'GPS satellites (MEO)', icon: '📡' },
+    { alt: 35786, label: 'Geostationary orbit (GEO)', icon: '📡', highlight: true },
+    { alt: 384400, label: 'The Moon', icon: '🌕', highlight: true },
 ];
 
 function buildAltitudeSection() {
@@ -1245,36 +1245,33 @@ function buildAltitudeSection() {
 
     if (!track || !scrollContainer) return;
 
-    // Logarithmic scale with an Earth surface header zone
+    // Full altitude range using log scale
     const maxAlt = 400000;
-    const earthZoneH = 80; // px reserved for Earth surface at top
-    const trackHeight = 8000;
+    const trackHeight = 6000;
     track.style.height = trackHeight + 'px';
 
+    // Logarithmic mapping: alt -> y position
     function altToY(alt) {
-        if (alt <= 0) return earthZoneH / 2;
-        return earthZoneH + (Math.log10(alt + 1) / Math.log10(maxAlt)) * (trackHeight - earthZoneH);
+        if (alt <= 0) return 0;
+        return (Math.log10(alt + 1) / Math.log10(maxAlt + 1)) * trackHeight;
     }
-
     function yToAlt(y) {
-        if (y <= earthZoneH) return 0;
-        const frac = (y - earthZoneH) / (trackHeight - earthZoneH);
-        return Math.pow(maxAlt, frac) - 1;
+        if (y <= 0) return 0;
+        return Math.pow(maxAlt + 1, y / trackHeight) - 1;
     }
 
-    // Earth surface banner at very top
-    const earthBanner = document.createElement('div');
-    earthBanner.className = 'altitude-earth-surface';
-    earthBanner.innerHTML = '🌍 Earth Surface — 0 km';
-    earthBanner.style.height = earthZoneH + 'px';
-    track.appendChild(earthBanner);
+    // Fixed Earth surface bar at the top of the scroll container (sticky)
+    const earthBar = document.createElement('div');
+    earthBar.className = 'altitude-earth-bar';
+    earthBar.innerHTML = `<span class="altitude-earth-bar-label">🌍 Earth Surface</span>`;
+    scrollContainer.insertBefore(earthBar, track);
 
-    // Render reference markers
+    // Render reference markers on the track
     ALTITUDE_REFERENCES.forEach(ref => {
-        if (ref.alt === 0) return; // handled by banner
+        if (ref.alt === 0) return;
         const y = altToY(ref.alt);
         const marker = document.createElement('div');
-        marker.className = `altitude-marker ${ref.highlight ? 'altitude-marker-highlight' : ''} ${ref.type === 'zone' ? 'altitude-marker-zone' : ''}`;
+        marker.className = `altitude-marker ${ref.highlight ? 'altitude-marker-highlight' : ''} ${ref.zone ? 'altitude-marker-zone' : ''}`;
         marker.style.top = y + 'px';
         marker.innerHTML = `
             <span class="altitude-marker-icon">${ref.icon}</span>
@@ -1284,9 +1281,8 @@ function buildAltitudeSection() {
         track.appendChild(marker);
     });
 
-    // Render ISRO spacecraft at their altitudes
+    // ISRO spacecraft at real altitudes
     const spacecraftWithAlt = allSpacecraft.filter(s => s.altitude_km && s.altitude_km > 0 && s.orbit_type !== 'Failed');
-
     const altGroups = {};
     spacecraftWithAlt.forEach(sc => {
         const bucket = Math.round(altToY(sc.altitude_km) / 20) * 20;
@@ -1301,47 +1297,45 @@ function buildAltitudeSection() {
         const color = getOrbitColor(representative.orbit_type);
 
         const el = document.createElement('div');
-        el.className = 'altitude-sat';
+        el.className = `altitude-sat ${isActive ? 'altitude-sat-active' : ''}`;
         el.style.top = y + 'px';
         el.style.setProperty('--sat-color', color);
+        el.style.cursor = 'pointer';
 
         if (sats.length === 1) {
             el.innerHTML = `<span class="altitude-sat-name">${escapeHtml(sats[0].name)}</span>
                 <span class="altitude-sat-alt">${representative.altitude_km.toLocaleString()} km</span>`;
+            el.addEventListener('click', () => openModal(sats[0].id));
         } else {
             el.innerHTML = `<span class="altitude-sat-name">${sats.length} spacecraft</span>
                 <span class="altitude-sat-alt">~${representative.altitude_km.toLocaleString()} km</span>`;
             el.title = sats.map(s => s.name).join(', ');
         }
-
-        if (isActive) el.classList.add('altitude-sat-active');
         track.appendChild(el);
     });
 
-    // Update altitude label on scroll
+    // Update altitude label and info panel on scroll
     scrollContainer.addEventListener('scroll', () => {
         const scrollTop = scrollContainer.scrollTop;
         const alt = yToAlt(scrollTop);
-        if (alt < 1) {
-            labelEl.textContent = Math.round(alt * 1000) + ' m';
-        } else if (alt < 1000) {
-            labelEl.textContent = Math.round(alt) + ' km';
-        } else {
-            labelEl.textContent = Math.round(alt).toLocaleString() + ' km';
+
+        if (alt < 1) labelEl.textContent = Math.round(alt * 1000) + ' m';
+        else if (alt < 1000) labelEl.textContent = Math.round(alt) + ' km';
+        else labelEl.textContent = Math.round(alt).toLocaleString() + ' km';
+
+        // Info panel — nearest reference
+        if (infoPanel) {
+            const nearest = ALTITUDE_REFERENCES.reduce((best, ref) =>
+                Math.abs(ref.alt - alt) < Math.abs(best.alt - alt) ? ref : best
+            );
+            const titleEl = infoPanel.querySelector('.altitude-info-title');
+            const descEl = infoPanel.querySelector('.altitude-info-desc');
+            if (titleEl) titleEl.textContent = nearest.icon + ' ' + nearest.label;
+            if (descEl) descEl.textContent = nearest.alt >= 1000
+                ? (nearest.alt / 1000).toLocaleString() + 'k km altitude'
+                : nearest.alt + ' km altitude';
         }
-
-        // Update info panel with nearest reference
-        const nearest = ALTITUDE_REFERENCES.reduce((best, ref) => {
-            return Math.abs(ref.alt - alt) < Math.abs(best.alt - alt) ? ref : best;
-        });
-        infoPanel.querySelector('.altitude-info-title').textContent = nearest.icon + ' ' + nearest.label;
-        infoPanel.querySelector('.altitude-info-desc').textContent = nearest.alt >= 1000
-            ? (nearest.alt / 1000).toLocaleString() + 'k km altitude'
-            : nearest.alt + ' km altitude';
     });
-
-    // Scroll starts at Earth surface (top = 0), no action needed
-    scrollContainer.scrollTop = 0;
 }
 
 // ===== Earth Perspective — "You Are Here" =====
