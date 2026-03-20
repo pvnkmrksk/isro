@@ -479,7 +479,106 @@ function buildLaunchers() {
     }).join('');
 }
 
-// ===== Orbital Visualization =====
+// ===== Orbit Mode Toggle =====
+function setupOrbitModeToggle() {
+    const btns = document.querySelectorAll('.orbit-mode-btn');
+    const scaleView = document.getElementById('orbit-scale-view');
+    const cartoonView = document.getElementById('orbit-cartoon-view');
+
+    btns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            btns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (btn.dataset.mode === 'scale') {
+                scaleView.style.display = '';
+                cartoonView.style.display = 'none';
+            } else {
+                scaleView.style.display = 'none';
+                cartoonView.style.display = '';
+            }
+        });
+    });
+}
+
+function buildOrbitScaleView() {
+    const track = document.getElementById('orbit-scale-track');
+    if (!track) return;
+
+    // Horizontal scroll: 0 km -> 45000 km (past GEO)
+    const maxAlt = 45000;
+    const trackWidth = 6000; // px
+    track.style.width = trackWidth + 'px';
+
+    function altToX(alt) {
+        // Use square root scale for better visual spread
+        return (Math.sqrt(alt) / Math.sqrt(maxAlt)) * trackWidth;
+    }
+
+    // Reference zones
+    const zones = [
+        { start: 160, end: 2000, label: 'LEO', color: '#3b82f6' },
+        { start: 2000, end: 20000, label: 'MEO', color: '#8b5cf6' },
+        { start: 35000, end: 36500, label: 'GEO Belt', color: '#f59e0b' },
+    ];
+
+    zones.forEach(z => {
+        const el = document.createElement('div');
+        el.className = 'orbit-scale-zone';
+        el.style.left = altToX(z.start) + 'px';
+        el.style.width = (altToX(z.end) - altToX(z.start)) + 'px';
+        el.style.background = z.color + '15';
+        el.style.borderLeft = `2px solid ${z.color}40`;
+        el.style.borderRight = `2px solid ${z.color}40`;
+        el.innerHTML = `<span class="orbit-scale-zone-label" style="color:${z.color}">${z.label}</span>`;
+        track.appendChild(el);
+    });
+
+    // Place ISRO satellites
+    const spacecraftWithAlt = allSpacecraft.filter(s => s.altitude_km && s.altitude_km > 0 && s.altitude_km <= maxAlt && s.orbit_type !== 'Failed');
+
+    // Group close satellites
+    const groups = {};
+    spacecraftWithAlt.forEach(sc => {
+        const x = Math.round(altToX(sc.altitude_km) / 30) * 30;
+        if (!groups[x]) groups[x] = [];
+        groups[x].push(sc);
+    });
+
+    Object.entries(groups).forEach(([xBucket, sats]) => {
+        const representative = sats[0];
+        const x = altToX(representative.altitude_km);
+        const color = getOrbitColor(representative.orbit_type);
+        const isActive = sats.some(s => getStatusClass(s.status) === 'active');
+
+        const el = document.createElement('div');
+        el.className = `orbit-scale-sat ${isActive ? 'orbit-scale-sat-active' : ''}`;
+        el.style.left = x + 'px';
+        el.style.setProperty('--orbit-color', color);
+
+        const label = sats.length === 1
+            ? escapeHtml(sats[0].name)
+            : `${sats.length} spacecraft`;
+
+        el.innerHTML = `
+            <div class="orbit-scale-sat-dot" style="background:${color}"></div>
+            <div class="orbit-scale-sat-label">${label}</div>
+            <div class="orbit-scale-sat-alt">${representative.altitude_km.toLocaleString()} km</div>
+        `;
+        el.title = sats.map(s => `${s.name} (${s.altitude_km} km)`).join('\n');
+        track.appendChild(el);
+    });
+
+    // Tick marks at key altitudes
+    [100, 200, 400, 600, 1000, 2000, 5000, 10000, 20000, 35786].forEach(alt => {
+        const tick = document.createElement('div');
+        tick.className = 'orbit-scale-tick';
+        tick.style.left = altToX(alt) + 'px';
+        tick.innerHTML = `<span>${alt >= 1000 ? (alt/1000) + 'k' : alt} km</span>`;
+        track.appendChild(tick);
+    });
+}
+
+// ===== Orbital Visualization (Canvas) =====
 function buildOrbitVisualization() {
     const canvas = document.getElementById('orbit-canvas');
     const ctx = canvas.getContext('2d');
@@ -986,6 +1085,9 @@ function setupNavigation() {
     document.querySelector('.modal-backdrop').addEventListener('click', closeModal);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
+    // Orbit mode toggle
+    setupOrbitModeToggle();
+
     // Timeline filter buttons
     document.querySelectorAll('.timeline-filters .filter-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1040,7 +1142,7 @@ async function init() {
         console.error('Failed to load data:', err);
     }
 
-    const builders = [buildStats, buildIndiaMap, buildAltitudeSection, buildTimeline, buildSpacecraftCatalog, buildLaunchers, buildOrbitVisualization, buildCustomerSatellites, buildCentres];
+    const builders = [buildStats, buildIndiaMap, buildAltitudeSection, buildTimeline, buildSpacecraftCatalog, buildLaunchers, buildOrbitScaleView, buildOrbitVisualization, buildCustomerSatellites, buildCentres];
     builders.forEach(fn => { try { fn(); } catch (err) { console.error(`${fn.name} failed:`, err); } });
 
     setupSectionObserver();
