@@ -699,6 +699,143 @@ function buildCentres() {
     `).join('');
 }
 
+// ===== India Map =====
+const CENTRE_COORDS = {
+    'Chandigarh': [30.7046, 76.7179],
+    'Jodhpur': [26.2389, 73.0243],
+    'Udaipur': [24.5854, 73.7125],
+    'Ahmedabad': [23.0395, 72.5113],
+    'Mt.Abu': [24.5926, 72.7156],
+    'Bhopal': [23.2599, 77.4126],
+    'Mumbai': [19.0760, 72.8777],
+    'Byalalu': [12.9018, 77.3682],
+    'Hassan': [13.0068, 76.1004],
+    'Aluva': [10.1004, 76.3570],
+    'Bengaluru': [12.9716, 77.5946],
+    'New Delhi': [28.6139, 77.2090],
+    'Dehradun': [30.3165, 78.0322],
+    'Lucknow': [26.8467, 80.9462],
+    'Kolkata': [22.5726, 88.3639],
+    'Shillong': [25.5788, 91.8933],
+    'Nagpur': [21.1458, 79.0882],
+    'Hyderabad': [17.4677, 78.4487],
+    'Tirupati': [13.6288, 79.4192],
+    'Port Blair': [11.6234, 92.7265],
+    'Sriharikota': [13.7330, 80.2350],
+    'Mahendragiri': [8.2825, 77.5659],
+    'Thiruvananthapuram': [8.5241, 76.9366],
+};
+
+// Convert lat/lon to SVG coords in the 400x500 viewBox
+function geoToSvg(lat, lon) {
+    // India approx bounding box: lat 6-36, lon 68-97
+    const minLat = 6, maxLat = 36, minLon = 68, maxLon = 97;
+    const x = ((lon - minLon) / (maxLon - minLon)) * 360 + 20;
+    const y = ((maxLat - lat) / (maxLat - minLat)) * 440 + 10;
+    return { x, y };
+}
+
+function buildIndiaMap() {
+    if (allCentres.length === 0) return;
+
+    const dotsGroup = document.getElementById('map-dots');
+    const sidebar = document.getElementById('map-sidebar-list');
+
+    // Group centres by city to avoid overlap
+    const byCity = {};
+    allCentres.forEach(c => {
+        const city = c.place || 'Unknown';
+        if (!byCity[city]) byCity[city] = [];
+        byCity[city].push(c);
+    });
+
+    const cityEntries = Object.entries(byCity).sort((a, b) => a[0].localeCompare(b[0]));
+    let dotIndex = 0;
+
+    cityEntries.forEach(([city, centres]) => {
+        const coords = CENTRE_COORDS[city];
+        if (!coords) return;
+
+        const { x, y } = geoToSvg(coords[0], coords[1]);
+        const isLaunchPad = city === 'Sriharikota';
+        const isHQ = city === 'Bengaluru';
+        const r = isLaunchPad ? 6 : isHQ ? 5 : 3.5;
+        const color = isLaunchPad ? 'var(--accent-red)' : isHQ ? 'var(--accent-cyan)' : 'var(--accent-blue)';
+
+        // SVG dot
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', x);
+        circle.setAttribute('cy', y);
+        circle.setAttribute('r', r);
+        circle.setAttribute('fill', color);
+        circle.setAttribute('class', 'map-dot');
+        circle.setAttribute('data-city', city);
+        circle.addEventListener('click', () => showMapPopup(city, centres, x, y));
+
+        // Glow
+        const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        glow.setAttribute('cx', x);
+        glow.setAttribute('cy', y);
+        glow.setAttribute('r', r + 4);
+        glow.setAttribute('fill', color);
+        glow.setAttribute('opacity', '0.2');
+        glow.setAttribute('class', 'map-dot-glow');
+
+        dotsGroup.appendChild(glow);
+        dotsGroup.appendChild(circle);
+
+        // Sidebar entry
+        const item = document.createElement('div');
+        item.className = 'map-sidebar-item';
+        item.innerHTML = `
+            <div class="map-sidebar-city">${escapeHtml(city)}</div>
+            <div class="map-sidebar-count">${centres.length} ${centres.length === 1 ? 'facility' : 'facilities'}</div>
+        `;
+        item.addEventListener('click', () => {
+            showMapPopup(city, centres, x, y);
+            circle.classList.add('map-dot-pulse');
+            setTimeout(() => circle.classList.remove('map-dot-pulse'), 1000);
+        });
+        sidebar.appendChild(item);
+    });
+}
+
+function showMapPopup(city, centres, svgX, svgY) {
+    const popup = document.getElementById('map-popup');
+    const content = document.getElementById('map-popup-content');
+
+    content.innerHTML = `
+        <h4 class="map-popup-city">${escapeHtml(city)}</h4>
+        <div class="map-popup-list">
+            ${centres.map(c => `<div class="map-popup-centre">${escapeHtml(c.name)}</div>`).join('')}
+        </div>
+    `;
+
+    // Position popup near the dot but within bounds
+    const container = document.getElementById('map-container');
+    const containerRect = container.getBoundingClientRect();
+    const svg = document.getElementById('india-svg');
+    const svgRect = svg.getBoundingClientRect();
+
+    // Convert SVG coords to pixel coords
+    const scaleX = svgRect.width / 400;
+    const scaleY = svgRect.height / 500;
+    let left = svgX * scaleX + 15;
+    let top = svgY * scaleY - 20;
+
+    // Keep popup in bounds
+    if (left > containerRect.width * 0.6) left = svgX * scaleX - 220;
+    if (top > containerRect.height * 0.7) top = svgY * scaleY - 100;
+
+    popup.style.left = left + 'px';
+    popup.style.top = top + 'px';
+    popup.classList.remove('hidden');
+}
+
+function closeMapPopup() {
+    document.getElementById('map-popup').classList.add('hidden');
+}
+
 // ===== Navigation =====
 function setupNavigation() {
     // Scroll handler for navbar
@@ -793,7 +930,7 @@ async function init() {
         console.error('Failed to load data:', err);
     }
 
-    const builders = [buildStats, buildTimeline, buildSpacecraftCatalog, buildLaunchers, buildOrbitVisualization, buildCustomerSatellites, buildCentres];
+    const builders = [buildStats, buildIndiaMap, buildTimeline, buildSpacecraftCatalog, buildLaunchers, buildOrbitVisualization, buildCustomerSatellites, buildCentres];
     builders.forEach(fn => { try { fn(); } catch (err) { console.error(`${fn.name} failed:`, err); } });
 
     setupSectionObserver();

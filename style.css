@@ -203,6 +203,61 @@ section { padding: 100px 0; position: relative; z-index: 1; }
 
 @keyframes slideIn { to { opacity: 1; transform: translateX(0); } }
 
+/* ===== India Map ===== */
+.map-wrapper {
+    display: grid; grid-template-columns: 1fr 280px; gap: 24px; align-items: start;
+}
+.map-container {
+    position: relative; background: var(--bg-card); border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg); padding: 24px; overflow: hidden;
+}
+#india-svg { width: 100%; height: auto; display: block; }
+#india-outline {
+    fill: rgba(59, 130, 246, 0.05); stroke: rgba(59, 130, 246, 0.25);
+    stroke-width: 1.5; stroke-linejoin: round;
+}
+.sri-lanka { fill: rgba(59, 130, 246, 0.03); stroke: rgba(59, 130, 246, 0.15); stroke-width: 1; }
+.map-dot { cursor: pointer; transition: r 0.2s; }
+.map-dot:hover { r: 6; }
+.map-dot-glow { pointer-events: none; }
+.map-dot-pulse { animation: dotPulse 1s ease-out; }
+@keyframes dotPulse {
+    0% { r: 3.5; opacity: 1; }
+    50% { r: 10; opacity: 0.5; }
+    100% { r: 3.5; opacity: 1; }
+}
+
+.map-popup {
+    position: absolute; background: var(--bg-secondary); border: 1px solid var(--accent-blue);
+    border-radius: var(--radius-md); padding: 16px; min-width: 200px; max-width: 260px;
+    box-shadow: var(--shadow-lg); z-index: 10;
+}
+.map-popup.hidden { display: none; }
+.map-popup-close {
+    position: absolute; top: 6px; right: 10px; background: none; border: none;
+    color: var(--text-muted); font-size: 18px; cursor: pointer; line-height: 1;
+}
+.map-popup-close:hover { color: var(--text-primary); }
+.map-popup-city { font-family: var(--font-display); font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--accent-cyan); }
+.map-popup-list { display: flex; flex-direction: column; gap: 6px; }
+.map-popup-centre { font-size: 13px; color: var(--text-secondary); padding: 4px 0; border-bottom: 1px solid var(--border-color); }
+.map-popup-centre:last-child { border-bottom: none; }
+
+.map-sidebar {
+    background: var(--bg-card); border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg); padding: 20px; max-height: 500px; overflow-y: auto;
+}
+.map-sidebar-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+.map-sidebar-list { display: flex; flex-direction: column; gap: 4px; }
+.map-sidebar-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; border-radius: var(--radius-sm);
+    cursor: pointer; transition: var(--transition);
+}
+.map-sidebar-item:hover { background: var(--bg-card-hover); }
+.map-sidebar-city { font-size: 14px; font-weight: 500; }
+.map-sidebar-count { font-size: 12px; color: var(--text-muted); }
+
 /* ===== Spacecraft Catalog ===== */
 .catalog-controls { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; align-items: center; }
 .search-box {
