@@ -188,10 +188,7 @@ function buildStats() {
     }, 9999);
     const span = firstYear < 9999 ? new Date().getFullYear() - firstYear : 0;
     const uniqueCountries = new Set(allCustomerSats.map(c => c.country).filter(Boolean)).size;
-    const missionProfiles = allMissions.length;
     const centresCount = allCentres.length;
-    const uniqueMissionTypes = new Set(allSpacecraft.map(s => s.mission_type).filter(Boolean)).size;
-    const uniqueVehicles = new Set(allSpacecraft.map(s => s.launch_vehicle).filter(Boolean)).size;
     const countOrbit = (o) => allSpacecraft.filter(s => s.orbit_type === o).length;
     const leo = countOrbit('LEO');
     const geo = countOrbit('GEO');
@@ -199,47 +196,81 @@ function buildStats() {
     const lunar = countOrbit('Lunar');
     const interplanetary = countOrbit('Interplanetary');
 
-    const stats = [
+    // Key stats — prominent cards
+    const keyStats = [
         { icon: '🛰️', number: totalSpacecraft, label: 'Spacecraft' },
         { icon: '✅', number: active, label: 'Active Now' },
+        { icon: '🚀', number: totalLaunches, label: 'Launches' },
+        { icon: '🌍', number: customerSats, label: 'Foreign Sats Launched' },
+        { icon: '🏛️', number: centresCount, label: 'Centres' },
+        { icon: '📅', number: span > 0 ? `${span}+` : '—', label: 'Years in Space' },
+    ];
+
+    // Detail stats — collapsed by default
+    const detailStats = [
         { icon: '📴', number: decommissioned, label: 'Decommissioned' },
-        { icon: '⚠️', number: failed, label: 'Failed / Lost' },
-        { icon: '🚀', number: totalLaunches, label: 'Launch Records' },
-        { icon: '📋', number: missionProfiles, label: 'Mission Profiles' },
-        { icon: '🌍', number: customerSats, label: 'Customer Sats' },
+        { icon: '⚠️', number: failed, label: 'Failed' },
         { icon: '🏳️', number: uniqueCountries, label: 'Countries Served' },
-        { icon: '🏛️', number: centresCount, label: 'ISRO Centres' },
-        { icon: '🎯', number: uniqueMissionTypes, label: 'Mission Types' },
-        { icon: '🔧', number: uniqueVehicles, label: 'Launch Vehicles Used' },
-        { icon: '🛸', number: leo, label: 'In LEO' },
-        { icon: '📡', number: geo, label: 'In GEO' },
-        { icon: '🌐', number: sso, label: 'In SSO' },
+        { icon: '🛸', number: leo, label: 'LEO' },
+        { icon: '📡', number: geo, label: 'GEO' },
+        { icon: '🌐', number: sso, label: 'SSO' },
         { icon: '🌙', number: lunar, label: 'Lunar' },
-        { icon: '☄️', number: interplanetary, label: 'Interplanetary' },
-        { icon: '📅', number: span > 0 ? `${span}+` : '—', label: 'Years Since First Launch' },
+        { icon: '☄️', number: interplanetary, label: 'Deep Space' },
     ];
 
     const grid = document.getElementById('stats-grid');
-    grid.innerHTML = stats.map((s, i) => `
-        <div class="stat-card">
-            <div class="stat-icon">${s.icon}</div>
-            <div class="stat-number" data-target="${s.number}" id="stat-${i}">0</div>
-            <div class="stat-label">${s.label}</div>
+    grid.innerHTML = `
+        <div class="stats-key-grid">
+            ${keyStats.map((s, i) => `
+                <div class="stat-card stat-card-key">
+                    <div class="stat-icon">${s.icon}</div>
+                    <div class="stat-number" data-target="${s.number}" id="stat-${i}">0</div>
+                    <div class="stat-label">${s.label}</div>
+                </div>
+            `).join('')}
         </div>
-    `).join('');
+        <button class="stats-expand-btn" id="stats-expand-btn" aria-expanded="false">
+            <span>Orbit breakdown & more</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="stats-detail-grid" id="stats-detail-grid">
+            ${detailStats.map((s, i) => `
+                <div class="stat-card stat-card-detail">
+                    <div class="stat-icon">${s.icon}</div>
+                    <div class="stat-number" data-target="${s.number}" id="stat-d-${i}">0</div>
+                    <div class="stat-label">${s.label}</div>
+                </div>
+            `).join('')}
+        </div>
+    `;
 
-    // Animate counters when visible
+    // Toggle expand
+    document.getElementById('stats-expand-btn').addEventListener('click', function() {
+        const detail = document.getElementById('stats-detail-grid');
+        const expanded = this.getAttribute('aria-expanded') === 'true';
+        this.setAttribute('aria-expanded', String(!expanded));
+        detail.classList.toggle('open');
+        this.querySelector('span').textContent = expanded ? 'Orbit breakdown & more' : 'Show less';
+        if (!expanded) {
+            detailStats.forEach((s, i) => {
+                const el = document.getElementById(`stat-d-${i}`);
+                if (el) animateCounter(el, s.number, 800);
+            });
+        }
+    });
+
+    // Animate key counters when visible
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                stats.forEach((s, i) => {
+                keyStats.forEach((s, i) => {
                     const el = document.getElementById(`stat-${i}`);
-                    if (el) animateCounter(el, s.number, 1200 + i * 200);
+                    if (el) animateCounter(el, s.number, 1200 + i * 150);
                 });
                 observer.disconnect();
             }
         });
-    }, { threshold: 0.3 });
+    }, { threshold: 0.2 });
     observer.observe(grid);
 }
 
@@ -860,14 +891,20 @@ function buildCustomerSatellites() {
 function buildCentres() {
     if (allCentres.length === 0) return;
 
-    document.getElementById('centres-grid').innerHTML = allCentres.map(c => `
+    document.getElementById('centres-grid').innerHTML = allCentres.map(c => {
+        const coords = CENTRE_COORDS[c.place];
+        const gmapsUrl = coords
+            ? `https://www.google.com/maps/search/${encodeURIComponent(c.name + ' ' + c.place)}/@${coords[0]},${coords[1]},14z`
+            : `https://www.google.com/maps/search/${encodeURIComponent(c.name + ' ' + (c.place || '') + ' India')}`;
+        return `
         <div class="centre-card">
             <div class="centre-name">${escapeHtml(c.name)}</div>
             <div class="centre-location">
                 📍 ${escapeHtml(c.place || '')}${c.state ? `, ${escapeHtml(c.state)}` : ''}
             </div>
-        </div>
-    `).join('');
+            <a href="${gmapsUrl}" target="_blank" rel="noopener" class="centre-gmaps-link">View on Google Maps</a>
+        </div>`;
+    }).join('');
 }
 
 // ===== India Map (real GeoJSON coordinates) =====
@@ -959,7 +996,11 @@ function buildIndiaMap() {
         const { x, y } = geoToSvg(coords[0], coords[1]);
         const isLaunchPad = city === 'Sriharikota';
         const isHQ = city === 'Bengaluru';
-        const r = isLaunchPad ? 6 : isHQ ? 5 : 3.5;
+        // Proportional radius: log-scaled by number of sites, with min/max caps
+        const count = centres.length;
+        const minR = 3.5, maxR = 10;
+        const logR = minR + (Math.log(count + 1) / Math.log(10)) * (maxR - minR);
+        const r = Math.min(maxR, Math.max(minR, isLaunchPad ? Math.max(logR, 6) : isHQ ? Math.max(logR, 5) : logR));
         const color = isLaunchPad ? 'var(--accent-red)' : isHQ ? 'var(--accent-cyan)' : 'var(--accent-blue)';
 
         // Glow circle
@@ -977,6 +1018,8 @@ function buildIndiaMap() {
         dotsGroup.appendChild(circle);
 
         // Hover interactions on dot
+        const gmapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(centres[0].name + ' ' + city)}/@${coords[0]},${coords[1]},14z`;
+
         const showPopup = () => {
             clearTimeout(hideTimeout);
             popupContent.innerHTML = `
@@ -984,6 +1027,7 @@ function buildIndiaMap() {
                 <div class="map-popup-list">
                     ${centres.map(c => `<div class="map-popup-centre">${escapeHtml(c.name)}</div>`).join('')}
                 </div>
+                <a href="${gmapsUrl}" target="_blank" rel="noopener" class="map-popup-gmaps">Open in Google Maps</a>
             `;
             const svgRect = svg.getBoundingClientRect();
             const scaleX = svgRect.width / 500;
@@ -1304,8 +1348,10 @@ async function init() {
         entries.forEach(entry => {
             if (entry.isIntersecting) entry.target.classList.add('visible');
         });
-    }, { threshold: 0.1 });
+    }, { threshold: 0.02, rootMargin: '0px 0px 50px 0px' });
     document.querySelectorAll('section').forEach(s => fadeObserver.observe(s));
+    // Fallback: make all sections visible after 2s
+    setTimeout(() => document.querySelectorAll('section').forEach(s => s.classList.add('visible')), 2000);
 
     // Hide loading
     setTimeout(() => {
