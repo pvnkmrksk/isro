@@ -428,6 +428,31 @@ function closeModal() {
 }
 
 // ===== Launch Vehicles =====
+const LAUNCHER_WIKI_TITLES = {
+    'SLV': 'Satellite_Launch_Vehicle',
+    'ASLV': 'Augmented_Satellite_Launch_Vehicle',
+    'PSLV': 'Polar_Satellite_Launch_Vehicle',
+    'GSLV': 'Geosynchronous_Satellite_Launch_Vehicle',
+    'GSLV Mk III': 'LVM3',
+    'LVM-3': 'LVM3',
+    'RLV': 'RLV-TD',
+};
+
+async function fetchLauncherImage(family) {
+    const title = LAUNCHER_WIKI_TITLES[family];
+    if (!title) return null;
+    try {
+        const res = await fetch(`${WIKI_API}/${title}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.thumbnail && data.thumbnail.source) {
+                return data.thumbnail.source;
+            }
+        }
+    } catch { /* ignore */ }
+    return null;
+}
+
 function buildLaunchers() {
     const families = {};
     allLaunchers.forEach(l => {
@@ -455,14 +480,19 @@ function buildLaunchers() {
 
     const container = document.getElementById('launcher-families');
     container.innerHTML = sorted.map(([family, launchers]) => {
-        const wikiName = family.replace(/ /g, '_');
+        const wikiTitle = LAUNCHER_WIKI_TITLES[family] || family.replace(/ /g, '_');
         return `
         <div class="launcher-family">
-            <div class="launcher-family-header">
-                <h3 class="launcher-family-name">${escapeHtml(family)}</h3>
-                <span class="launcher-family-count">${launchers.length} mission${launchers.length !== 1 ? 's' : ''}</span>
+            <div class="launcher-family-top">
+                <div class="launcher-family-img" id="launcher-img-${family.replace(/\s+/g, '-')}"></div>
+                <div class="launcher-family-info">
+                    <div class="launcher-family-header">
+                        <h3 class="launcher-family-name">${escapeHtml(family)}</h3>
+                        <span class="launcher-family-count">${launchers.length} mission${launchers.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <p class="launcher-family-desc">${familyDescriptions[family] || `The ${family} family of launch vehicles.`}</p>
+                </div>
             </div>
-            <p class="launcher-family-desc">${familyDescriptions[family] || `The ${family} family of launch vehicles.`}</p>
             <div class="launcher-list">
                 ${launchers.map(l => `
                     <span class="launcher-chip ${l.customer_satellites_launched ? 'has-customers' : ''}"
@@ -472,11 +502,21 @@ function buildLaunchers() {
                     </span>
                 `).join('')}
             </div>
-            <a href="https://en.wikipedia.org/wiki/${wikiName}" target="_blank" rel="noopener" class="launcher-wiki-link">
+            <a href="https://en.wikipedia.org/wiki/${wikiTitle}" target="_blank" rel="noopener" class="launcher-wiki-link">
                 📖 Learn more on Wikipedia
             </a>
         </div>`;
     }).join('');
+
+    // Load images async
+    sorted.forEach(([family]) => {
+        fetchLauncherImage(family).then(url => {
+            const imgContainer = document.getElementById(`launcher-img-${family.replace(/\s+/g, '-')}`);
+            if (url && imgContainer) {
+                imgContainer.innerHTML = `<img src="${url}" alt="${escapeHtml(family)}" loading="lazy">`;
+            }
+        });
+    });
 }
 
 // ===== Orbit Mode Toggle =====
