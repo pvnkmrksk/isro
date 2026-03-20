@@ -178,22 +178,45 @@ function animateCounter(el, target, duration = 1500) {
 function buildStats() {
     const totalSpacecraft = allSpacecraft.length;
     const active = allSpacecraft.filter(s => getStatusClass(s.status) === 'active').length;
+    const decommissioned = allSpacecraft.filter(s => getStatusClass(s.status) === 'decommissioned').length;
+    const failed = allSpacecraft.filter(s => getStatusClass(s.status) === 'failed').length;
     const totalLaunches = allLaunchers.length;
     const customerSats = allCustomerSats.length;
     const firstYear = allSpacecraft.reduce((min, s) => {
         const y = getYear(s.launch_date);
         return y && y < min ? y : min;
     }, 9999);
-    const span = new Date().getFullYear() - firstYear;
+    const span = firstYear < 9999 ? new Date().getFullYear() - firstYear : 0;
     const uniqueCountries = new Set(allCustomerSats.map(c => c.country).filter(Boolean)).size;
+    const missionProfiles = allMissions.length;
+    const centresCount = allCentres.length;
+    const uniqueMissionTypes = new Set(allSpacecraft.map(s => s.mission_type).filter(Boolean)).size;
+    const uniqueVehicles = new Set(allSpacecraft.map(s => s.launch_vehicle).filter(Boolean)).size;
+    const countOrbit = (o) => allSpacecraft.filter(s => s.orbit_type === o).length;
+    const leo = countOrbit('LEO');
+    const geo = countOrbit('GEO');
+    const sso = countOrbit('SSO');
+    const lunar = countOrbit('Lunar');
+    const interplanetary = countOrbit('Interplanetary');
 
     const stats = [
         { icon: '🛰️', number: totalSpacecraft, label: 'Spacecraft' },
         { icon: '✅', number: active, label: 'Active Now' },
-        { icon: '🚀', number: totalLaunches, label: 'Launches' },
+        { icon: '📴', number: decommissioned, label: 'Decommissioned' },
+        { icon: '⚠️', number: failed, label: 'Failed / Lost' },
+        { icon: '🚀', number: totalLaunches, label: 'Launch Records' },
+        { icon: '📋', number: missionProfiles, label: 'Mission Profiles' },
         { icon: '🌍', number: customerSats, label: 'Customer Sats' },
         { icon: '🏳️', number: uniqueCountries, label: 'Countries Served' },
-        { icon: '📅', number: `${span}+`, label: 'Years in Space' },
+        { icon: '🏛️', number: centresCount, label: 'ISRO Centres' },
+        { icon: '🎯', number: uniqueMissionTypes, label: 'Mission Types' },
+        { icon: '🔧', number: uniqueVehicles, label: 'Launch Vehicles Used' },
+        { icon: '🛸', number: leo, label: 'In LEO' },
+        { icon: '📡', number: geo, label: 'In GEO' },
+        { icon: '🌐', number: sso, label: 'In SSO' },
+        { icon: '🌙', number: lunar, label: 'Lunar' },
+        { icon: '☄️', number: interplanetary, label: 'Interplanetary' },
+        { icon: '📅', number: span > 0 ? `${span}+` : '—', label: 'Years Since First Launch' },
     ];
 
     const grid = document.getElementById('stats-grid');
@@ -1191,28 +1214,21 @@ async function init() {
         console.error('Failed to load data:', err);
     }
 
+    if (allSpacecraft.length === 0) {
+        const banner = document.getElementById('data-load-banner');
+        if (banner) {
+            banner.classList.remove('hidden');
+            banner.textContent = 'Could not load spacecraft data (network or blocked request). Serve this folder over HTTP, e.g. python3 -m http.server 8000, then open http://localhost:8000';
+        }
+    }
+
     const builders = [buildStats, buildIndiaMap, buildAltitudeSection, buildTimeline, buildSpacecraftCatalog, buildLaunchers, buildOrbitScaleView, buildOrbitVisualization, buildCustomerSatellites, buildCentres];
     builders.forEach(fn => { try { fn(); } catch (err) { console.error(`${fn.name} failed:`, err); } });
-
-    setupSectionObserver();
 
     // Hide loading
     setTimeout(() => {
         document.getElementById('loading-overlay').classList.add('hidden');
     }, 500);
-}
-
-// ===== Section fade-in observer =====
-function setupSectionObserver() {
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('visible');
-            }
-        });
-    }, { threshold: 0.1 });
-
-    document.querySelectorAll('section').forEach(s => observer.observe(s));
 }
 
 // Start

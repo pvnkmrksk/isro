@@ -54,6 +54,14 @@ body { font-family: var(--font-body); background: var(--bg-primary); color: var(
 
 /* ===== Utility ===== */
 .container { max-width: 1280px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+.data-load-banner {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10001;
+    padding: 12px 24px; text-align: center; font-size: 14px;
+    background: rgba(239, 68, 68, 0.95); color: #fff;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+.data-load-banner.hidden { display: none; }
 .gradient-text { background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 
 /* ===== Navigation ===== */
@@ -115,8 +123,8 @@ body { font-family: var(--font-body); background: var(--bg-primary); color: var(
 /* ===== Stats Section ===== */
 #stats { padding: 60px 0; margin-top: -40px; position: relative; z-index: 2; }
 .stats-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
 }
 .stat-card {
     background: var(--bg-card); border: 1px solid var(--border-color);
@@ -734,19 +742,6 @@ section { padding: 100px 0; position: relative; z-index: 1; }
     .launcher-family { padding: 20px; }
     .centres-grid { grid-template-columns: 1fr; }
     .customer-grid { grid-template-columns: 1fr; }
-}
-
-/* ===== Fade-in animation for sections ===== */
-section:not(#hero):not(#stats) .section-header,
-section:not(#hero):not(#stats) .container > div {
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.6s ease, transform 0.6s ease;
-}
-section:not(#hero):not(#stats).visible .section-header,
-section:not(#hero):not(#stats).visible .container > div {
-    opacity: 1;
-    transform: translateY(0);
 }
 
 /* Scrollbar */
