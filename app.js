@@ -366,8 +366,13 @@ async function openModal(id) {
     ].filter(f => f.value);
 
     body.innerHTML = `
-        <h2 class="modal-title">${escapeHtml(sc.name)}</h2>
-        <p class="modal-subtitle">${escapeHtml(sc.mission_type || 'ISRO Spacecraft')}</p>
+        <div class="modal-header-row">
+            <div class="modal-header-text">
+                <h2 class="modal-title">${escapeHtml(sc.name)}</h2>
+                <p class="modal-subtitle">${escapeHtml(sc.mission_type || 'ISRO Spacecraft')}</p>
+            </div>
+            <div class="modal-thumb" id="modal-thumb"></div>
+        </div>
         <div class="modal-grid">
             ${fields.map(f => `
                 <div class="modal-field">
@@ -405,8 +410,12 @@ async function openModal(id) {
 
     // Load Wikipedia content
     const wikiDiv = document.getElementById('wiki-content');
+    const thumbDiv = document.getElementById('modal-thumb');
     const wiki = await fetchWikiSummary(sc.name);
     if (wiki) {
+        if (wiki.thumbnail && thumbDiv) {
+            thumbDiv.innerHTML = `<img src="${wiki.thumbnail.source}" alt="${escapeHtml(sc.name)}">`;
+        }
         wikiDiv.innerHTML = `
             <p>${escapeHtml(wiki.extract)}</p>
             <a href="${wiki.url}" target="_blank" rel="noopener" class="modal-wiki-link">📖 Read more on Wikipedia</a>

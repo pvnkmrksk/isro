@@ -428,6 +428,13 @@ section { padding: 100px 0; position: relative; z-index: 1; }
     line-height: 1;
 }
 .modal-close:hover { color: var(--text-primary); }
+.modal-header-row { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 24px; }
+.modal-header-text { flex: 1; min-width: 0; }
+.modal-thumb {
+    width: 80px; height: 80px; flex-shrink: 0; border-radius: var(--radius-md);
+    overflow: hidden; background: var(--bg-card); border: 1px solid var(--border-color);
+}
+.modal-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .modal-title { font-family: var(--font-display); font-size: 28px; font-weight: 800; margin-bottom: 6px; }
 .modal-subtitle { color: var(--text-secondary); font-size: 14px; margin-bottom: 24px; }
 .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
