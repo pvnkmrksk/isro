@@ -605,26 +605,27 @@ function setupOrbitModeToggle() {
 
 function buildOrbitScaleView() {
     const track = document.getElementById('orbit-scale-track');
-    if (!track) return;
+    const scroll = document.getElementById('orbit-scale-scroll');
+    if (!track || !scroll) return;
 
-    // Horizontal scroll: 0 km -> 45000 km (past GEO)
     const maxAlt = 45000;
-    const trackWidth = 6000; // px
+    const trackWidth = 6000;
     track.style.width = trackWidth + 'px';
 
-    function altToX(alt) {
-        // Use square root scale for better visual spread
-        return (Math.sqrt(alt) / Math.sqrt(maxAlt)) * trackWidth;
-    }
+    function altToX(alt) { return (Math.sqrt(alt) / Math.sqrt(maxAlt)) * trackWidth; }
+
+    // Earth at left edge
+    const earthEl = document.createElement('div');
+    earthEl.className = 'orbit-scale-earth';
+    earthEl.innerHTML = '<span>Earth Surface</span>';
+    track.appendChild(earthEl);
 
     // Reference zones
-    const zones = [
+    [
         { start: 160, end: 2000, label: 'LEO', color: '#3b82f6' },
         { start: 2000, end: 20000, label: 'MEO', color: '#8b5cf6' },
         { start: 35000, end: 36500, label: 'GEO Belt', color: '#f59e0b' },
-    ];
-
-    zones.forEach(z => {
+    ].forEach(z => {
         const el = document.createElement('div');
         el.className = 'orbit-scale-zone';
         el.style.left = altToX(z.start) + 'px';
@@ -636,10 +637,8 @@ function buildOrbitScaleView() {
         track.appendChild(el);
     });
 
-    // Place ISRO satellites
+    // Place satellites
     const spacecraftWithAlt = allSpacecraft.filter(s => s.altitude_km && s.altitude_km > 0 && s.altitude_km <= maxAlt && s.orbit_type !== 'Failed');
-
-    // Group close satellites
     const groups = {};
     spacecraftWithAlt.forEach(sc => {
         const x = Math.round(altToX(sc.altitude_km) / 30) * 30;
@@ -647,37 +646,56 @@ function buildOrbitScaleView() {
         groups[x].push(sc);
     });
 
+    // Stagger satellites vertically to avoid overlap
+    const usedRows = {};
     Object.entries(groups).forEach(([xBucket, sats]) => {
         const representative = sats[0];
         const x = altToX(representative.altitude_km);
         const color = getOrbitColor(representative.orbit_type);
         const isActive = sats.some(s => getStatusClass(s.status) === 'active');
 
+        // Find a free vertical row
+        let row = 0;
+        const xKey = Math.round(x / 80);
+        if (!usedRows[xKey]) usedRows[xKey] = 0;
+        row = usedRows[xKey]++ % 3;
+
         const el = document.createElement('div');
         el.className = `orbit-scale-sat ${isActive ? 'orbit-scale-sat-active' : ''}`;
         el.style.left = x + 'px';
-        el.style.setProperty('--orbit-color', color);
+        el.style.top = `${25 + row * 65}px`;
+        el.style.transform = 'none';
 
-        const label = sats.length === 1
-            ? escapeHtml(sats[0].name)
-            : `${sats.length} spacecraft`;
-
+        const label = sats.length === 1 ? escapeHtml(sats[0].name) : `${sats.length} spacecraft`;
         el.innerHTML = `
             <div class="orbit-scale-sat-dot" style="background:${color}"></div>
             <div class="orbit-scale-sat-label">${label}</div>
             <div class="orbit-scale-sat-alt">${representative.altitude_km.toLocaleString()} km</div>
         `;
         el.title = sats.map(s => `${s.name} (${s.altitude_km} km)`).join('\n');
+        if (sats.length === 1) el.addEventListener('click', () => openModal(sats[0].id));
+        else el.addEventListener('click', () => { /* could expand group */ });
+        el.style.cursor = 'pointer';
         track.appendChild(el);
     });
 
-    // Tick marks at key altitudes
+    // Tick marks
     [100, 200, 400, 600, 1000, 2000, 5000, 10000, 20000, 35786].forEach(alt => {
         const tick = document.createElement('div');
         tick.className = 'orbit-scale-tick';
         tick.style.left = altToX(alt) + 'px';
         tick.innerHTML = `<span>${alt >= 1000 ? (alt/1000) + 'k' : alt} km</span>`;
         track.appendChild(tick);
+    });
+
+    // Altitude readout on scroll
+    const readout = document.createElement('div');
+    readout.className = 'orbit-scale-readout';
+    scroll.appendChild(readout);
+    scroll.addEventListener('scroll', () => {
+        const frac = scroll.scrollLeft / (trackWidth - scroll.clientWidth);
+        const alt = Math.round(frac * frac * maxAlt);
+        readout.textContent = `${alt.toLocaleString()} km`;
     });
 }
 
@@ -686,15 +704,6 @@ function buildOrbitVisualization() {
     const canvas = document.getElementById('orbit-canvas');
     const ctx = canvas.getContext('2d');
     const container = canvas.parentElement;
-
-    const resize = () => {
-        const rect = container.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        ctx.scale(dpr, dpr);
-        draw();
-    };
 
     // Categorize spacecraft by orbit
     const orbitGroups = {};
@@ -708,7 +717,7 @@ function buildOrbitVisualization() {
     // Build orbit legend
     const legend = document.getElementById('orbit-legend');
     legend.innerHTML = Object.entries(orbitGroups).map(([orbit, sats]) => `
-        <div class="orbit-legend-item">
+        <div class="orbit-legend-item" data-orbit="${orbit}">
             <div class="orbit-legend-dot" style="background: ${getOrbitColor(orbit)};"></div>
             <span>${orbit} (${sats.length})</span>
         </div>
@@ -723,133 +732,276 @@ function buildOrbitVisualization() {
         </div>
     `).join('');
 
-    // Store satellite positions for tooltip
+    // Interactive state
+    let zoom = 1;
+    let panX = 0, panY = 0;
+    let isDragging = false, dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
+    let highlightOrbit = null;
+    let selectedSat = null;
     let satPositions = [];
+
+    // Legend click to filter
+    legend.querySelectorAll('.orbit-legend-item').forEach(item => {
+        item.style.cursor = 'pointer';
+        item.addEventListener('click', () => {
+            const orbit = item.dataset.orbit;
+            if (highlightOrbit === orbit) { highlightOrbit = null; item.classList.remove('orbit-legend-active'); }
+            else {
+                legend.querySelectorAll('.orbit-legend-item').forEach(i => i.classList.remove('orbit-legend-active'));
+                highlightOrbit = orbit; item.classList.add('orbit-legend-active');
+            }
+        });
+    });
+
+    const resize = () => {
+        const rect = container.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
 
     function draw() {
         const w = canvas.width / (window.devicePixelRatio || 1);
         const h = canvas.height / (window.devicePixelRatio || 1);
-        const cx = w / 2;
-        const cy = h / 2;
-        const maxR = Math.min(w, h) / 2 - 20;
+        const cx = w / 2 + panX;
+        const cy = h / 2 + panY;
+        const maxR = (Math.min(w, h) / 2 - 20) * zoom;
 
         ctx.clearRect(0, 0, w, h);
         satPositions = [];
 
-        // Draw Earth
+        // Starfield dots
+        ctx.save();
+        for (let i = 0; i < 60; i++) {
+            const sx = ((i * 137.508) % w);
+            const sy = ((i * 97.31 + 50) % h);
+            ctx.beginPath();
+            ctx.arc(sx, sy, 0.5 + (i % 3) * 0.3, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255,255,255,${0.1 + (i % 5) * 0.06})`;
+            ctx.fill();
+        }
+        ctx.restore();
+
+        // Draw Earth with atmosphere glow
         const earthR = maxR * 0.12;
-        const earthGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, earthR);
-        earthGrad.addColorStop(0, '#4ade80');
+        // Atmosphere glow
+        const atmosGrad = ctx.createRadialGradient(cx, cy, earthR, cx, cy, earthR * 1.6);
+        atmosGrad.addColorStop(0, 'rgba(59, 130, 246, 0.15)');
+        atmosGrad.addColorStop(1, 'transparent');
+        ctx.beginPath();
+        ctx.arc(cx, cy, earthR * 1.6, 0, Math.PI * 2);
+        ctx.fillStyle = atmosGrad;
+        ctx.fill();
+
+        // Earth sphere
+        const earthGrad = ctx.createRadialGradient(cx - earthR * 0.3, cy - earthR * 0.3, 0, cx, cy, earthR);
+        earthGrad.addColorStop(0, '#5ee8a0');
+        earthGrad.addColorStop(0.3, '#4ade80');
         earthGrad.addColorStop(0.6, '#2563eb');
-        earthGrad.addColorStop(1, '#1e3a5f');
+        earthGrad.addColorStop(1, '#1a365d');
         ctx.beginPath();
         ctx.arc(cx, cy, earthR, 0, Math.PI * 2);
         ctx.fillStyle = earthGrad;
         ctx.fill();
 
-        // Draw "Earth" label
+        // Earth label
         ctx.fillStyle = '#fff';
-        ctx.font = '11px Inter, sans-serif';
+        ctx.font = `${Math.max(9, earthR * 0.35)}px Inter, sans-serif`;
         ctx.textAlign = 'center';
-        ctx.fillText('Earth', cx, cy + 4);
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Earth', cx, cy);
 
         // Orbit ring radii
         const orbitRadii = {
             'LEO': earthR + maxR * 0.15,
             'SSO': earthR + maxR * 0.28,
-            'Lunar': maxR * 0.85,
-            'Interplanetary': maxR * 0.95,
             'GEO': earthR + maxR * 0.55,
             'Unknown': earthR + maxR * 0.42,
+            'Lunar': maxR * 0.82,
+            'Interplanetary': maxR * 0.93,
         };
 
-        // Draw orbit rings
+        // Draw orbit rings (with dashed style for outer orbits)
         Object.entries(orbitRadii).forEach(([orbit, r]) => {
             if (!orbitGroups[orbit]) return;
+            const isHighlighted = !highlightOrbit || highlightOrbit === orbit;
             ctx.beginPath();
             ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.strokeStyle = getOrbitColor(orbit) + '30';
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = getOrbitColor(orbit) + (isHighlighted ? '40' : '12');
+            ctx.lineWidth = isHighlighted ? 1.5 : 0.5;
+            if (orbit === 'Lunar' || orbit === 'Interplanetary') ctx.setLineDash([4, 6]);
+            else ctx.setLineDash([]);
             ctx.stroke();
+            ctx.setLineDash([]);
 
-            // Label
-            ctx.fillStyle = getOrbitColor(orbit) + '80';
-            ctx.font = '10px Inter, sans-serif';
+            // Orbit label on ring
+            const labelAngle = -Math.PI / 4;
+            const lx = cx + (r + 12) * Math.cos(labelAngle);
+            const ly = cy + (r + 12) * Math.sin(labelAngle);
+            ctx.fillStyle = getOrbitColor(orbit) + (isHighlighted ? 'a0' : '40');
+            ctx.font = `${Math.max(9, 10 * zoom)}px Inter, sans-serif`;
             ctx.textAlign = 'left';
-            ctx.fillText(orbit, cx + r + 5, cy);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${orbit} (${orbitGroups[orbit].length})`, lx, ly);
         });
 
-        // Place satellites on orbit rings
-        const time = Date.now() / 50000;
+        // Place satellites
+        const time = Date.now() / 40000;
+        const speeds = { 'LEO': 3, 'SSO': 2.5, 'GEO': 0.3, 'Unknown': 1, 'Lunar': 0.15, 'Interplanetary': 0.08 };
+
         Object.entries(orbitGroups).forEach(([orbit, sats]) => {
             const r = orbitRadii[orbit] || earthR + maxR * 0.4;
             const color = getOrbitColor(orbit);
+            const speed = speeds[orbit] || 1;
+            const isHighlighted = !highlightOrbit || highlightOrbit === orbit;
 
             sats.forEach((sc, i) => {
-                const angle = (i / sats.length) * Math.PI * 2 + time * (orbit === 'LEO' ? 2 : orbit === 'SSO' ? 1.5 : 0.5);
-                const x = cx + r * Math.cos(angle);
-                const y = cy + r * Math.sin(angle);
+                // Spread satellites with slight radial variation
+                const radialJitter = (i % 3 - 1) * maxR * 0.015;
+                const effectiveR = r + radialJitter;
+                const angle = (i / sats.length) * Math.PI * 2 + time * speed;
+                const x = cx + effectiveR * Math.cos(angle);
+                const y = cy + effectiveR * Math.sin(angle);
 
-                // Satellite dot
                 const isActive = getStatusClass(sc.status) === 'active';
-                ctx.beginPath();
-                ctx.arc(x, y, isActive ? 4 : 3, 0, Math.PI * 2);
-                ctx.fillStyle = color;
-                ctx.globalAlpha = isActive ? 1 : 0.5;
-                ctx.fill();
-                ctx.globalAlpha = 1;
+                const isSel = selectedSat === sc.id;
+                const alpha = isHighlighted ? (isActive ? 1 : 0.6) : 0.12;
+                const dotR = (isActive ? 4 : 3) * (isSel ? 1.8 : 1) * Math.max(0.7, zoom * 0.8);
 
-                // Glow for active
-                if (isActive) {
+                // Trail for active satellites
+                if (isActive && isHighlighted) {
+                    const trailLen = 6;
+                    for (let t = 1; t <= trailLen; t++) {
+                        const ta = angle - t * 0.03 * speed;
+                        const tx = cx + effectiveR * Math.cos(ta);
+                        const ty = cy + effectiveR * Math.sin(ta);
+                        ctx.beginPath();
+                        ctx.arc(tx, ty, dotR * 0.5, 0, Math.PI * 2);
+                        ctx.fillStyle = color;
+                        ctx.globalAlpha = alpha * (1 - t / trailLen) * 0.3;
+                        ctx.fill();
+                    }
+                    ctx.globalAlpha = 1;
+                }
+
+                // Glow
+                if (isActive && isHighlighted) {
                     ctx.beginPath();
-                    ctx.arc(x, y, 8, 0, Math.PI * 2);
-                    ctx.fillStyle = color + '20';
+                    ctx.arc(x, y, dotR + 4, 0, Math.PI * 2);
+                    ctx.fillStyle = color + '18';
                     ctx.fill();
                 }
 
-                satPositions.push({ x, y, name: sc.name, orbit, status: sc.status, r: isActive ? 6 : 4 });
+                // Satellite dot
+                ctx.beginPath();
+                ctx.arc(x, y, dotR, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.globalAlpha = alpha;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+
+                // Label for selected satellite
+                if (isSel) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '11px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(sc.name, x, y - dotR - 8);
+                }
+
+                satPositions.push({ x, y, name: sc.name, orbit, status: sc.status, id: sc.id, r: dotR + 3, altitude_km: sc.altitude_km });
             });
         });
     }
 
     // Animation loop
     let animFrame;
-    function animate() {
-        draw();
-        animFrame = requestAnimationFrame(animate);
-    }
+    function animate() { draw(); animFrame = requestAnimationFrame(animate); }
 
-    // Tooltip on hover
+    // Mouse interactions
     const tooltip = document.getElementById('orbit-tooltip');
+
     canvas.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+            panX = panStartX + (e.clientX - dragStartX);
+            panY = panStartY + (e.clientY - dragStartY);
+            canvas.style.cursor = 'grabbing';
+            return;
+        }
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        const hit = satPositions.find(s => Math.hypot(s.x - x, s.y - y) < s.r + 4);
+        const hit = satPositions.find(s => Math.hypot(s.x - x, s.y - y) < s.r + 2);
         if (hit) {
+            canvas.style.cursor = 'pointer';
             tooltip.style.display = 'block';
-            tooltip.style.left = (x + 15) + 'px';
+            tooltip.style.left = Math.min(x + 15, container.offsetWidth - 180) + 'px';
             tooltip.style.top = (y - 10) + 'px';
-            tooltip.innerHTML = `<strong>${escapeHtml(hit.name)}</strong><br>${hit.orbit} · ${getStatusClass(hit.status)}`;
+            tooltip.innerHTML = `<strong>${escapeHtml(hit.name)}</strong><br>${hit.orbit}${hit.altitude_km ? ' · ' + hit.altitude_km.toLocaleString() + ' km' : ''}<br><span style="color:${getStatusColor(hit.status)}">${getStatusClass(hit.status)}</span>`;
         } else {
+            canvas.style.cursor = isDragging ? 'grabbing' : 'grab';
             tooltip.style.display = 'none';
         }
     });
 
-    canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+    canvas.addEventListener('mousedown', (e) => {
+        isDragging = true; dragStartX = e.clientX; dragStartY = e.clientY;
+        panStartX = panX; panStartY = panY;
+    });
+    canvas.addEventListener('mouseup', (e) => {
+        const moved = Math.hypot(e.clientX - dragStartX, e.clientY - dragStartY);
+        isDragging = false; canvas.style.cursor = 'grab';
+        // If barely moved, treat as click
+        if (moved < 5) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left, y = e.clientY - rect.top;
+            const hit = satPositions.find(s => Math.hypot(s.x - x, s.y - y) < s.r + 2);
+            if (hit) { selectedSat = selectedSat === hit.id ? null : hit.id; openModal(hit.id); }
+            else selectedSat = null;
+        }
+    });
+    canvas.addEventListener('mouseleave', () => { isDragging = false; tooltip.style.display = 'none'; canvas.style.cursor = 'grab'; });
+
+    // Zoom with scroll wheel
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        zoom = Math.max(0.3, Math.min(4, zoom * delta));
+    }, { passive: false });
+
+    // Touch support
+    let lastTouchDist = 0;
+    canvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+            isDragging = true; dragStartX = e.touches[0].clientX; dragStartY = e.touches[0].clientY;
+            panStartX = panX; panStartY = panY;
+        } else if (e.touches.length === 2) {
+            lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        }
+    });
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (e.touches.length === 1 && isDragging) {
+            panX = panStartX + (e.touches[0].clientX - dragStartX);
+            panY = panStartY + (e.touches[0].clientY - dragStartY);
+        } else if (e.touches.length === 2) {
+            const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            if (lastTouchDist > 0) zoom = Math.max(0.3, Math.min(4, zoom * (dist / lastTouchDist)));
+            lastTouchDist = dist;
+        }
+    }, { passive: false });
+    canvas.addEventListener('touchend', () => { isDragging = false; lastTouchDist = 0; });
 
     window.addEventListener('resize', resize);
     resize();
+    canvas.style.cursor = 'grab';
 
     // Only animate when visible
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                animate();
-            } else {
-                cancelAnimationFrame(animFrame);
-            }
+            if (entry.isIntersecting) animate();
+            else cancelAnimationFrame(animFrame);
         });
     });
     observer.observe(canvas);
