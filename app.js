@@ -1299,6 +1299,14 @@ async function init() {
     const builders = [buildStats, buildIndiaMap, buildAltitudeSection, buildEarthPerspective, buildTimeline, buildSpacecraftCatalog, buildLaunchers, buildOrbitScaleView, buildOrbitVisualization, buildCustomerSatellites, buildCentres];
     builders.forEach(fn => { try { fn(); } catch (err) { console.error(`${fn.name} failed:`, err); } });
 
+    // Section fade-in observer
+    const fadeObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) entry.target.classList.add('visible');
+        });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('section').forEach(s => fadeObserver.observe(s));
+
     // Hide loading
     setTimeout(() => {
         document.getElementById('loading-overlay').classList.add('hidden');
