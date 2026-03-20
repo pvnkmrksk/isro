@@ -203,6 +203,101 @@ section { padding: 100px 0; position: relative; z-index: 1; }
 
 @keyframes slideIn { to { opacity: 1; transform: translateX(0); } }
 
+/* ===== Altitude / Scale of Space ===== */
+.altitude-outer {
+    display: grid; grid-template-columns: 60px 1fr 240px; gap: 16px;
+    height: 500px; position: relative;
+}
+.altitude-scale-bar {
+    position: relative; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start;
+    background: linear-gradient(to bottom, #1a3a5f, #0a0e1a 30%, #0a0e1a 80%, #1a1040);
+    border-radius: var(--radius-md); padding: 8px 0;
+}
+.altitude-current-label {
+    position: sticky; top: 8px;
+    font-family: var(--font-display); font-size: 13px; font-weight: 700;
+    color: var(--accent-cyan); background: var(--bg-card);
+    padding: 6px 8px; border-radius: var(--radius-sm);
+    border: 1px solid var(--accent-cyan); white-space: nowrap;
+    z-index: 2; text-align: center;
+}
+.altitude-scroll-container {
+    overflow-y: auto; overflow-x: hidden; position: relative;
+    background: linear-gradient(to bottom,
+        #2563eb10 0%,
+        #06b6d410 5%,
+        #0a0e1a 15%,
+        #0a0e1a 85%,
+        #8b5cf610 100%
+    );
+    border: 1px solid var(--border-color); border-radius: var(--radius-md);
+    scrollbar-width: thin; scrollbar-color: var(--accent-blue) transparent;
+}
+.altitude-track {
+    position: relative; width: 100%; min-height: 100%;
+}
+.altitude-marker {
+    position: absolute; left: 16px; right: 16px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: var(--radius-sm);
+    border-left: 3px solid var(--border-color);
+    font-size: 13px; color: var(--text-secondary);
+    transform: translateY(-50%);
+}
+.altitude-marker-highlight {
+    border-left-color: var(--accent-cyan);
+    background: rgba(6, 182, 212, 0.08);
+    color: var(--text-primary); font-weight: 600;
+}
+.altitude-marker-zone {
+    border-left-color: var(--accent-purple);
+    border-left-style: dashed; opacity: 0.7;
+}
+.altitude-marker-icon { font-size: 16px; flex-shrink: 0; }
+.altitude-marker-label { flex: 1; }
+.altitude-marker-alt {
+    font-family: var(--font-display); font-size: 12px; font-weight: 600;
+    color: var(--text-muted); white-space: nowrap;
+}
+
+.altitude-sat {
+    position: absolute; left: 16px; right: 16px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 12px; border-radius: var(--radius-sm);
+    font-size: 12px; color: var(--text-muted);
+    border-left: 2px solid var(--sat-color, var(--accent-blue));
+    transform: translateY(-50%);
+    transition: var(--transition);
+}
+.altitude-sat:hover {
+    background: rgba(59, 130, 246, 0.08);
+    color: var(--text-primary);
+}
+.altitude-sat-active {
+    color: var(--text-secondary);
+}
+.altitude-sat-active::after {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent-green); flex-shrink: 0;
+    box-shadow: 0 0 6px var(--accent-green);
+}
+.altitude-sat-name { flex: 1; font-weight: 500; }
+.altitude-sat-alt {
+    font-family: var(--font-display); font-size: 11px; font-weight: 600;
+    color: var(--text-muted); white-space: nowrap;
+}
+
+.altitude-info-panel {
+    background: var(--bg-card); border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg); padding: 24px;
+    position: sticky; top: 0; align-self: start;
+}
+.altitude-info-title {
+    font-family: var(--font-display); font-size: 18px; font-weight: 700; margin-bottom: 8px;
+}
+.altitude-info-desc { font-size: 14px; color: var(--text-secondary); }
+
 /* ===== India Map ===== */
 .map-wrapper {
     display: grid; grid-template-columns: 1fr 280px; gap: 24px; align-items: start;
@@ -532,6 +627,10 @@ section { padding: 100px 0; position: relative; z-index: 1; }
     .modal-content { padding: 24px; width: 95%; }
     .modal-grid { grid-template-columns: 1fr; }
 
+    .map-wrapper { grid-template-columns: 1fr; }
+    .map-sidebar { max-height: 200px; }
+    .altitude-outer { grid-template-columns: 40px 1fr; height: 400px; }
+    .altitude-info-panel { display: none; }
     .footer-content { grid-template-columns: 1fr; gap: 24px; }
     .spotting-content { grid-template-columns: 1fr; }
     .orbit-viz-container { max-width: 100%; }

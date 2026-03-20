@@ -836,6 +836,116 @@ function closeMapPopup() {
     document.getElementById('map-popup').classList.add('hidden');
 }
 
+// ===== Altitude / Scale of Space =====
+const ALTITUDE_REFERENCES = [
+    { alt: 0.83, label: 'Burj Khalifa', icon: '🏗️', type: 'ref' },
+    { alt: 11, label: 'Airplane cruise', icon: '✈️', type: 'ref' },
+    { alt: 35, label: 'Weather balloon', icon: '🎈', type: 'ref' },
+    { alt: 100, label: 'Karman Line — Edge of Space', icon: '🌌', type: 'ref', highlight: true },
+    { alt: 160, label: 'LEO lower bound', icon: '🛸', type: 'zone' },
+    { alt: 408, label: 'International Space Station', icon: '🛰️', type: 'ref' },
+    { alt: 2000, label: 'LEO upper bound', icon: '🛸', type: 'zone' },
+    { alt: 20200, label: 'GPS satellites (MEO)', icon: '📡', type: 'ref' },
+    { alt: 35786, label: 'Geostationary orbit (GEO)', icon: '📡', type: 'ref', highlight: true },
+    { alt: 384400, label: 'The Moon', icon: '🌕', type: 'ref', highlight: true },
+];
+
+function buildAltitudeSection() {
+    const track = document.getElementById('altitude-track');
+    const scrollContainer = document.getElementById('altitude-scroll');
+    const labelEl = document.getElementById('altitude-current-label');
+    const infoPanel = document.getElementById('altitude-info-panel');
+
+    if (!track || !scrollContainer) return;
+
+    // Use logarithmic scale: alt -> position
+    // Map 0 km to top, 384400 km (Moon) to bottom
+    const maxAlt = 400000;
+    const trackHeight = 8000; // px total scroll height
+    track.style.height = trackHeight + 'px';
+
+    function altToY(alt) {
+        if (alt <= 0) return 0;
+        return (Math.log10(alt + 1) / Math.log10(maxAlt)) * trackHeight;
+    }
+
+    function yToAlt(y) {
+        const frac = y / trackHeight;
+        return Math.pow(maxAlt, frac) - 1;
+    }
+
+    // Render reference markers
+    ALTITUDE_REFERENCES.forEach(ref => {
+        const y = altToY(ref.alt);
+        const marker = document.createElement('div');
+        marker.className = `altitude-marker ${ref.highlight ? 'altitude-marker-highlight' : ''} ${ref.type === 'zone' ? 'altitude-marker-zone' : ''}`;
+        marker.style.top = y + 'px';
+        marker.innerHTML = `
+            <span class="altitude-marker-icon">${ref.icon}</span>
+            <span class="altitude-marker-label">${ref.label}</span>
+            <span class="altitude-marker-alt">${ref.alt >= 1000 ? (ref.alt / 1000).toLocaleString() + 'k' : ref.alt} km</span>
+        `;
+        track.appendChild(marker);
+    });
+
+    // Render ISRO spacecraft at their altitudes
+    const spacecraftWithAlt = allSpacecraft.filter(s => s.altitude_km && s.altitude_km > 0 && s.orbit_type !== 'Failed');
+
+    // Group by approximate altitude to avoid overlap
+    const altGroups = {};
+    spacecraftWithAlt.forEach(sc => {
+        const bucket = Math.round(altToY(sc.altitude_km) / 20) * 20; // group within 20px
+        if (!altGroups[bucket]) altGroups[bucket] = [];
+        altGroups[bucket].push(sc);
+    });
+
+    Object.entries(altGroups).forEach(([bucket, sats]) => {
+        const representative = sats[0];
+        const y = altToY(representative.altitude_km);
+        const isActive = sats.some(s => getStatusClass(s.status) === 'active');
+        const color = getOrbitColor(representative.orbit_type);
+
+        const el = document.createElement('div');
+        el.className = 'altitude-sat';
+        el.style.top = y + 'px';
+        el.style.setProperty('--sat-color', color);
+
+        if (sats.length === 1) {
+            el.innerHTML = `<span class="altitude-sat-name">${escapeHtml(sats[0].name)}</span>
+                <span class="altitude-sat-alt">${representative.altitude_km.toLocaleString()} km</span>`;
+        } else {
+            el.innerHTML = `<span class="altitude-sat-name">${sats.length} spacecraft</span>
+                <span class="altitude-sat-alt">~${representative.altitude_km.toLocaleString()} km</span>`;
+            el.title = sats.map(s => s.name).join(', ');
+        }
+
+        if (isActive) el.classList.add('altitude-sat-active');
+        track.appendChild(el);
+    });
+
+    // Update altitude label on scroll
+    scrollContainer.addEventListener('scroll', () => {
+        const scrollTop = scrollContainer.scrollTop;
+        const alt = yToAlt(scrollTop);
+        if (alt < 1) {
+            labelEl.textContent = Math.round(alt * 1000) + ' m';
+        } else if (alt < 1000) {
+            labelEl.textContent = Math.round(alt) + ' km';
+        } else {
+            labelEl.textContent = Math.round(alt).toLocaleString() + ' km';
+        }
+
+        // Update info panel with nearest reference
+        const nearest = ALTITUDE_REFERENCES.reduce((best, ref) => {
+            return Math.abs(ref.alt - alt) < Math.abs(best.alt - alt) ? ref : best;
+        });
+        infoPanel.querySelector('.altitude-info-title').textContent = nearest.icon + ' ' + nearest.label;
+        infoPanel.querySelector('.altitude-info-desc').textContent = nearest.alt >= 1000
+            ? (nearest.alt / 1000).toLocaleString() + 'k km altitude'
+            : nearest.alt + ' km altitude';
+    });
+}
+
 // ===== Navigation =====
 function setupNavigation() {
     // Scroll handler for navbar
@@ -930,7 +1040,7 @@ async function init() {
         console.error('Failed to load data:', err);
     }
 
-    const builders = [buildStats, buildIndiaMap, buildTimeline, buildSpacecraftCatalog, buildLaunchers, buildOrbitVisualization, buildCustomerSatellites, buildCentres];
+    const builders = [buildStats, buildIndiaMap, buildAltitudeSection, buildTimeline, buildSpacecraftCatalog, buildLaunchers, buildOrbitVisualization, buildCustomerSatellites, buildCentres];
     builders.forEach(fn => { try { fn(); } catch (err) { console.error(`${fn.name} failed:`, err); } });
 
     setupSectionObserver();
